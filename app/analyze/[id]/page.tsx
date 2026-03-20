@@ -134,6 +134,8 @@ export default function AnalyzeReportPage() {
       <Card className="border-border/70 bg-card/50 p-5 md:p-6">
         <h2 className="mb-5 text-lg font-medium tracking-tight">Analysis Results</h2>
         <ResultsPanel
+          reportId={report.id}
+          projectName={report.projectName}
           issues={issues}
           screenshotUrls={report.screenshots}
           score={report.score}

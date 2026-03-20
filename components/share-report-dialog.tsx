@@ -17,6 +17,13 @@ import { useToast } from "@/hooks/use-toast"
 
 interface ShareReportDialogProps {
   issues: Issue[]
+  projectName?: string
+  reportId?: string
+  scoreValue?: number | null
+  decision?: {
+    status: string
+    reason: string
+  } | null
 }
 
 const severityPenalty: Record<ExtendedSeverity, number> = {
@@ -26,7 +33,13 @@ const severityPenalty: Record<ExtendedSeverity, number> = {
   low: 2,
 }
 
-export function ShareReportDialog({ issues }: ShareReportDialogProps) {
+export function ShareReportDialog({
+  issues,
+  projectName,
+  reportId,
+  scoreValue,
+  decision,
+}: ShareReportDialogProps) {
   const [open, setOpen] = useState(false)
   const [isCopyingSummary, setIsCopyingSummary] = useState(false)
   const [isCopyingMarkdown, setIsCopyingMarkdown] = useState(false)
@@ -40,14 +53,16 @@ export function ShareReportDialog({ issues }: ShareReportDialogProps) {
       medium: issues.filter((i) => i.severity === "medium").length,
       low: issues.filter((i) => i.severity === "low").length,
     }
-    const score = Math.max(
+    const fallbackScore = Math.max(
       0,
       Math.round(
         100 - issues.reduce((total, issue) => total + severityPenalty[issue.severity], 0)
       )
     )
+    const score = scoreValue ?? fallbackScore
     const status =
-      score >= 90 ? "Launch-Ready" : score >= 70 ? "Launch With Caution" : "Not Launch-Ready"
+      decision?.status ??
+      (score >= 90 ? "Launch-Ready" : score >= 70 ? "Launch With Caution" : "Not Launch-Ready")
 
     const topBlockers = [...issues]
       .sort((a, b) => severityPenalty[b.severity] - severityPenalty[a.severity])
@@ -61,17 +76,29 @@ export function ShareReportDialog({ issues }: ShareReportDialogProps) {
       counts,
       topBlockers,
     }
-  }, [issues])
+  }, [decision?.status, issues, scoreValue])
+
+  const reason = decision?.reason ?? "Generated from current launch readiness analysis."
+  const reportUrl =
+    typeof window !== "undefined" && reportId
+      ? `${window.location.origin}/analyze/${reportId}`
+      : undefined
 
   const summaryText = `LaunchGuard report
+Project: ${projectName ?? "Release Candidate"}
 Launch score: ${summary.score}/100 (${summary.status})
+Decision: ${summary.status}
+Reason: ${reason}
 Issues: ${issues.length} total | ${summary.counts.critical} critical, ${summary.counts.high} high, ${summary.counts.medium} medium, ${summary.counts.low} low
 Top blockers:
-${summary.topBlockers || "No blockers detected."}`
+${summary.topBlockers || "No blockers detected."}
+${reportUrl ? `Report: ${reportUrl}` : ""}`
 
   const markdownReport = `## LaunchGuard Report
+- **Project:** ${projectName ?? "Release Candidate"}
 - **Launch Score:** ${summary.score}/100
 - **Status:** ${summary.status}
+- **Reason:** ${reason}
 - **Issues:** ${issues.length}
 
 ### Severity Breakdown
@@ -112,12 +139,45 @@ ${summary.topBlockers || "No blockers detected."}`
   const shareToSlack = async () => {
     try {
       setIsSharingSlack(true)
-      await new Promise((resolve) => setTimeout(resolve, 850))
+      const blockers = [...issues]
+        .sort((a, b) => severityPenalty[b.severity] - severityPenalty[a.severity])
+        .slice(0, 3)
+        .map((issue) => issue.title)
+
+      const response = await fetch("/api/integrations/slack", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectName: projectName ?? "Release Candidate",
+          reportUrl,
+          score: summary.score,
+          status: summary.status,
+          reason,
+          counts: summary.counts,
+          blockers,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Slack share failed")
+      }
       toast({
-        title: "Slack share simulated",
-        description: "Hackathon mode: this is where the Slack integration action fires.",
+        title: "Shared to Slack",
+        description: "Report summary posted to your configured Slack channel.",
       })
       setOpen(false)
+    } catch {
+      try {
+        await navigator.clipboard.writeText(summaryText)
+      } catch {
+        // Ignore clipboard failures and still surface actionable toast.
+      }
+      toast({
+        title: "Slack unavailable",
+        description: "Webhook missing or failed. Summary copied so you can paste to Slack.",
+      })
     } finally {
       setIsSharingSlack(false)
     }

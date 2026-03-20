@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils"
 import { ShareReportDialog } from "@/components/share-report-dialog"
 
 interface ResultsPanelProps {
+  reportId?: string
+  projectName?: string
   issues: Issue[]
   screenshotUrls: string[]
   score?: {
@@ -50,6 +52,8 @@ interface ResultsPanelProps {
 type FilterType = "all" | ExtendedSeverity
 
 export function ResultsPanel({
+  reportId,
+  projectName,
   issues,
   screenshotUrls,
   score,
@@ -192,7 +196,13 @@ export function ResultsPanel({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <ShareReportDialog issues={visibleIssues} />
+          <ShareReportDialog
+            issues={visibleIssues}
+            projectName={projectName}
+            reportId={reportId}
+            scoreValue={score?.value}
+            decision={decision}
+          />
           {onReAnalyze && (
             <Button variant="ghost" size="sm" onClick={onReAnalyze}>
               <RefreshCw className="size-4" />
