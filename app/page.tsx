@@ -196,7 +196,10 @@ export default function LaunchGuardPage() {
       </header>
 
       <main className="relative mx-auto flex w-full max-w-7xl flex-col gap-7 px-6 py-8">
-        <section className="animate-rise-in rounded-2xl border border-border/70 bg-card/45 p-6 opacity-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] [animation-delay:80ms] [animation-fill-mode:forwards] backdrop-blur-sm">
+        <section
+          className="animate-rise-in rounded-2xl border border-border/70 bg-card/45 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm"
+          style={{ animationDelay: '80ms' }}
+        >
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="font-mono text-[11px] tracking-[0.22em] text-cyan-200/85 uppercase">
@@ -215,11 +218,17 @@ export default function LaunchGuardPage() {
         </section>
 
         <section className="grid gap-8 xl:grid-cols-[1.02fr_1fr]">
-          <div className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 opacity-0 shadow-xl shadow-black/20 [animation-delay:170ms] [animation-fill-mode:forwards] backdrop-blur-sm md:p-6">
+          <div
+            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6"
+            style={{ animationDelay: '170ms' }}
+          >
             <InputPanel onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
           </div>
 
-          <div className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 opacity-0 shadow-xl shadow-black/20 [animation-delay:240ms] [animation-fill-mode:forwards] backdrop-blur-sm md:p-6">
+          <div
+            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6"
+            style={{ animationDelay: '240ms' }}
+          >
             <h3 className="mb-5 font-medium text-lg tracking-tight text-foreground">
               Analysis Results
             </h3>

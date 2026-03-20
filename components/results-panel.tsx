@@ -181,7 +181,7 @@ export function ResultsPanel({
             <IssueCard
               key={issue.id}
               issue={issue}
-              className="animate-rise-in opacity-0 [animation-fill-mode:forwards]"
+              className="animate-rise-in"
               style={{ animationDelay: `${index * 90}ms` }}
               onCreateIssue={onCreateIssue}
               onDismiss={handleDismiss}
