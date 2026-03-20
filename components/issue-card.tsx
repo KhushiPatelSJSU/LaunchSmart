@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { type CSSProperties, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   ChevronDown,
   ChevronUp,
+  Loader2,
   ImageIcon,
   PlusCircle,
   Check,
@@ -15,62 +16,85 @@ import {
 import { cn } from "@/lib/utils"
 
 export type Severity = "critical" | "medium" | "low"
+export type ExtendedSeverity = Severity | "high"
 
 export interface Issue {
   id: string
   title: string
-  severity: Severity
+  severity: ExtendedSeverity
   description: string
+  evidence?: string
   screenshotRef?: string
 }
 
 interface IssueCardProps {
   issue: Issue
-  onCreateIssue?: (issue: Issue) => void
-  onDismiss?: (issue: Issue) => void
-  onResolve?: (issue: Issue) => void
+  className?: string
+  style?: CSSProperties
+  onCreateIssue?: (issue: Issue) => void | Promise<void>
+  onDismiss?: (issue: Issue) => void | Promise<void>
+  onResolve?: (issue: Issue) => void | Promise<void>
 }
 
 const severityConfig: Record<
-  Severity,
+  ExtendedSeverity,
   { label: string; className: string }
 > = {
   critical: {
     label: "Critical",
-    className: "bg-destructive text-destructive-foreground",
+    className:
+      "border border-red-500/40 bg-red-500/20 text-red-200 shadow-[0_0_18px_rgba(239,68,68,0.25)]",
+  },
+  high: {
+    label: "High",
+    className:
+      "border border-amber-400/40 bg-amber-400/20 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.2)]",
   },
   medium: {
     label: "Medium",
-    className: "bg-warning text-warning-foreground",
+    className:
+      "border border-orange-400/40 bg-orange-400/20 text-orange-100 shadow-[0_0_18px_rgba(251,146,60,0.2)]",
   },
   low: {
     label: "Low",
-    className: "bg-muted text-muted-foreground",
+    className: "border border-emerald-400/30 bg-emerald-500/10 text-emerald-100",
   },
 }
 
 export function IssueCard({
   issue,
+  className,
+  style,
   onCreateIssue,
   onDismiss,
   onResolve,
 }: IssueCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isResolved, setIsResolved] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isDismissing, setIsDismissing] = useState(false)
+  const [isResolving, setIsResolving] = useState(false)
   const config = severityConfig[issue.severity]
 
-  const handleResolve = () => {
-    setIsResolved(true)
-    onResolve?.(issue)
+  const handleResolve = async () => {
+    try {
+      setIsResolving(true)
+      setIsResolved(true)
+      await onResolve?.(issue)
+    } finally {
+      setIsResolving(false)
+    }
   }
 
   return (
     <Card
+      style={style}
       className={cn(
-        "border-border bg-card transition-all duration-200",
+        "border-border/80 bg-card/70 transition-all duration-200 backdrop-blur-sm",
         isResolved
-          ? "opacity-50 scale-[0.98]"
-          : "hover:bg-secondary/50 hover:border-muted-foreground/30"
+          ? "scale-[0.99] opacity-55"
+          : "hover:-translate-y-0.5 hover:border-accent/45 hover:bg-card",
+        className
       )}
     >
       <CardHeader
@@ -100,7 +124,10 @@ export function IssueCard({
           </div>
           <div className="flex items-center gap-2">
             {isResolved && (
-              <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+              <Badge
+                variant="outline"
+                className="border-success/40 bg-success/15 text-success"
+              >
                 Resolved
               </Badge>
             )}
@@ -121,8 +148,17 @@ export function IssueCard({
               {issue.description}
             </p>
 
+            {issue.evidence && (
+              <div className="rounded-md border border-border/70 bg-background/45 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Evidence
+                </p>
+                <p className="mt-1 text-xs text-foreground/85">{issue.evidence}</p>
+              </div>
+            )}
+
             {issue.screenshotRef && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-md bg-muted/50 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                 <ImageIcon className="size-4" />
                 <span>Referenced in: {issue.screenshotRef}</span>
               </div>
@@ -132,39 +168,72 @@ export function IssueCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation()
-                  onCreateIssue?.(issue)
+                  try {
+                    setIsCreating(true)
+                    await onCreateIssue?.(issue)
+                  } finally {
+                    setIsCreating(false)
+                  }
                 }}
-                disabled={isResolved}
+                disabled={isResolved || isCreating}
                 className="flex-1"
               >
-                <PlusCircle className="size-4" />
-                Create Issue
+                {isCreating ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Drafting...
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="size-4" />
+                    Create Issue
+                  </>
+                )}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation()
-                  handleResolve()
+                  await handleResolve()
                 }}
-                disabled={isResolved}
+                disabled={isResolved || isResolving}
                 className="text-success hover:text-success hover:bg-success/10 hover:border-success/30"
               >
-                <Check className="size-4" />
-                Resolve
+                {isResolving ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Resolving
+                  </>
+                ) : (
+                  <>
+                    <Check className="size-4" />
+                    Resolve
+                  </>
+                )}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation()
-                  onDismiss?.(issue)
+                  try {
+                    setIsDismissing(true)
+                    await onDismiss?.(issue)
+                  } finally {
+                    setIsDismissing(false)
+                  }
                 }}
                 className="text-muted-foreground hover:text-destructive"
+                disabled={isDismissing}
               >
-                <X className="size-4" />
+                {isDismissing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <X className="size-4" />
+                )}
               </Button>
             </div>
           </CardContent>

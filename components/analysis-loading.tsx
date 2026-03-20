@@ -28,15 +28,23 @@ export function AnalysisLoading() {
   }, [])
 
   return (
-    <div className="flex flex-col items-center justify-center py-16">
-      <div className="mb-8">
-        <div className="relative size-16">
-          <div className="absolute inset-0 rounded-full border-4 border-muted" />
-          <div className="absolute inset-0 animate-spin rounded-full border-4 border-t-accent border-r-transparent border-b-transparent border-l-transparent" />
+    <div className="rounded-xl border border-border/70 bg-background/45 p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="relative size-10">
+          <div className="absolute inset-0 rounded-full border-2 border-muted" />
+          <div className="absolute inset-0 animate-spin rounded-full border-2 border-t-cyan-300 border-r-transparent border-b-transparent border-l-transparent" />
+        </div>
+        <div>
+          <p className="font-mono text-xs tracking-[0.2em] text-cyan-200 uppercase">
+            Launch Scan In Progress
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Parsing spec, reading screenshots, ranking risk...
+          </p>
         </div>
       </div>
 
-      <div className="space-y-3 w-full max-w-xs">
+      <div className="w-full space-y-3">
         {steps.map((step, index) => {
           const isComplete = index < currentStep
           const isCurrent = index === currentStep

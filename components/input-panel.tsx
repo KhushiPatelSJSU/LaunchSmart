@@ -37,7 +37,7 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  })
+  }, [isAnalyzing, screenshots.length, spec])
 
   const handleSpecFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -96,12 +96,15 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
   return (
     <div className="space-y-6">
       {/* Product Spec Section */}
-      <Card className="bg-card border-border">
+      <Card className="border-border/75 bg-card/60 backdrop-blur-sm">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-medium">
             <FileText className="size-4" />
             Product Spec
           </CardTitle>
+          <p className="font-mono text-[11px] tracking-[0.17em] text-muted-foreground uppercase">
+            Paste raw requirements or upload a plaintext spec
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
@@ -110,7 +113,7 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
               placeholder="Paste your product specification here..."
               value={spec}
               onChange={(e) => setSpec(e.target.value.slice(0, MAX_SPEC_CHARS))}
-              className="min-h-[200px] resize-none bg-input border-border text-foreground placeholder:text-muted-foreground pr-4 pb-8"
+              className="min-h-[250px] resize-none border-border/70 bg-input/70 pb-8 pr-4 text-foreground placeholder:text-muted-foreground"
             />
             <div className="absolute bottom-2 right-2 flex items-center gap-2">
               <div
@@ -180,7 +183,7 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
       </Card>
 
       {/* Screenshots Section */}
-      <Card className="bg-card border-border">
+      <Card className="border-border/75 bg-card/60 backdrop-blur-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base font-medium">
@@ -193,6 +196,9 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
               </span>
             )}
           </div>
+          <p className="font-mono text-[11px] tracking-[0.17em] text-muted-foreground uppercase">
+            Drag UI captures of your highest-risk product flows
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div
@@ -201,22 +207,23 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={cn(
-              "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 cursor-pointer transition-all duration-200",
+              "relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 transition-all duration-200",
               isDragging
-                ? "border-accent bg-accent/10 scale-[1.02]"
-                : "border-border bg-input/50 hover:border-muted-foreground hover:bg-input"
+                ? "scale-[1.02] border-cyan-300 bg-cyan-500/10"
+                : "border-border bg-input/35 hover:border-cyan-300/50 hover:bg-input/70"
             )}
           >
+            <div className="pointer-events-none absolute inset-0 rounded-lg bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.1),transparent_55%)]" />
             <div
               className={cn(
                 "rounded-full p-3 transition-colors",
-                isDragging ? "bg-accent/20" : "bg-muted"
+                isDragging ? "bg-cyan-400/20" : "bg-muted"
               )}
             >
               <Upload
                 className={cn(
                   "size-6 transition-colors",
-                  isDragging ? "text-accent" : "text-muted-foreground"
+                  isDragging ? "text-cyan-200" : "text-muted-foreground"
                 )}
               />
             </div>
@@ -277,7 +284,7 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
         size="lg"
         onClick={handleAnalyze}
         disabled={!canAnalyze}
-        className="w-full group"
+        className="group w-full bg-gradient-to-r from-cyan-300 via-sky-400 to-indigo-400 font-semibold text-slate-900 hover:from-cyan-200 hover:via-sky-300 hover:to-indigo-300"
       >
         {isAnalyzing ? (
           "Analyzing..."

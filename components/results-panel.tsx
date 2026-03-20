@@ -1,7 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { IssueCard, type Issue, type Severity } from "@/components/issue-card"
+import {
+  IssueCard,
+  type ExtendedSeverity,
+  type Issue,
+} from "@/components/issue-card"
+import { LaunchScoreCard } from "@/components/launch-score-card"
 import { AnalysisLoading } from "@/components/analysis-loading"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,17 +17,18 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ShareReportDialog } from "@/components/share-report-dialog"
 
 interface ResultsPanelProps {
   issues: Issue[]
   isLoading: boolean
   hasAnalyzed: boolean
-  onCreateIssue: (issue: Issue) => void
-  onDismiss?: (issue: Issue) => void
+  onCreateIssue: (issue: Issue) => void | Promise<void>
+  onDismiss?: (issue: Issue) => void | Promise<void>
   onReAnalyze?: () => void
 }
 
-type FilterType = "all" | Severity
+type FilterType = "all" | ExtendedSeverity
 
 export function ResultsPanel({
   issues,
@@ -36,12 +42,12 @@ export function ResultsPanel({
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set())
 
-  const handleDismiss = (issue: Issue) => {
+  const handleDismiss = async (issue: Issue) => {
     setDismissedIds((prev) => new Set(prev).add(issue.id))
-    onDismiss?.(issue)
+    await onDismiss?.(issue)
   }
 
-  const handleResolve = (issue: Issue) => {
+  const handleResolve = async (issue: Issue) => {
     setResolvedIds((prev) => new Set(prev).add(issue.id))
   }
 
@@ -98,6 +104,7 @@ export function ResultsPanel({
       : visibleIssues.filter((i) => i.severity === filter)
 
   const criticalCount = visibleIssues.filter((i) => i.severity === "critical").length
+  const highCount = visibleIssues.filter((i) => i.severity === "high").length
   const mediumCount = visibleIssues.filter((i) => i.severity === "medium").length
   const lowCount = visibleIssues.filter((i) => i.severity === "low").length
   const resolvedCount = resolvedIds.size
@@ -105,14 +112,17 @@ export function ResultsPanel({
   const filterOptions: { value: FilterType; label: string; count: number }[] = [
     { value: "all", label: "All", count: visibleIssues.length },
     { value: "critical", label: "Critical", count: criticalCount },
+    { value: "high", label: "High", count: highCount },
     { value: "medium", label: "Medium", count: mediumCount },
     { value: "low", label: "Low", count: lowCount },
   ]
 
   return (
     <div className="space-y-6">
+      <LaunchScoreCard issues={visibleIssues} />
+
       {/* Summary */}
-      <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/50 p-3">
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border/70 bg-muted/20 p-3">
         <div className="flex items-center gap-2">
           <AlertTriangle className="size-5 text-warning" />
           <span className="text-sm text-foreground">
@@ -125,12 +135,15 @@ export function ResultsPanel({
             )}
           </span>
         </div>
-        {onReAnalyze && (
-          <Button variant="ghost" size="sm" onClick={onReAnalyze}>
-            <RefreshCw className="size-4" />
-            Re-analyze
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <ShareReportDialog issues={visibleIssues} />
+          {onReAnalyze && (
+            <Button variant="ghost" size="sm" onClick={onReAnalyze}>
+              <RefreshCw className="size-4" />
+              Re-analyze
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -164,10 +177,12 @@ export function ResultsPanel({
             No {filter} issues found.
           </div>
         ) : (
-          filteredIssues.map((issue) => (
+          filteredIssues.map((issue, index) => (
             <IssueCard
               key={issue.id}
               issue={issue}
+              className="animate-rise-in opacity-0 [animation-fill-mode:forwards]"
+              style={{ animationDelay: `${index * 90}ms` }}
               onCreateIssue={onCreateIssue}
               onDismiss={handleDismiss}
               onResolve={handleResolve}

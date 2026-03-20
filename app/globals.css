@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -133,5 +132,44 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  @keyframes rise-in {
+    0% {
+      opacity: 0;
+      transform: translateY(14px) scale(0.99);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .animate-rise-in {
+    animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .animate-fade-in {
+    animation: fade-in 500ms ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-rise-in,
+    .animate-fade-in {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
 }
