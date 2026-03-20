@@ -88,7 +88,27 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
     const cached = localStorage.getItem("launchguard:github-repo")
     if (cached) {
       setRepo(cached)
+      return
     }
+
+    const loadDefaultRepo = async () => {
+      try {
+        const response = await fetch("/api/integrations/github", {
+          method: "GET",
+        })
+        if (!response.ok) {
+          return
+        }
+        const payload = (await response.json()) as { repo?: string | null }
+        if (payload.repo) {
+          setRepo(payload.repo)
+        }
+      } catch {
+        // Keep manual entry fallback.
+      }
+    }
+
+    void loadDefaultRepo()
   }, [])
 
   useEffect(() => {
@@ -150,14 +170,6 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
       return
     }
 
-    if (!repo.trim()) {
-      toast({
-        title: "Repository required",
-        description: 'Set GitHub repo as "owner/repo" before creating issues.',
-      })
-      return
-    }
-
     const reportUrl = typeof window !== "undefined" ? window.location.href : undefined
 
     try {
@@ -175,7 +187,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          repo: repo.trim(),
+          repo: repo.trim() || undefined,
           drafts: selectedDrafts,
           mode: mode === "critical" ? "critical" : "all",
           reportUrl,

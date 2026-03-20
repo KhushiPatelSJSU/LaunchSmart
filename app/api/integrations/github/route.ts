@@ -160,3 +160,8 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export async function GET() {
+  const repo = process.env.GITHUB_REPO || process.env.GITHUB_REPOSITORY || null
+  return NextResponse.json({ repo })
+}
