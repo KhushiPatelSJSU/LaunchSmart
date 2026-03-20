@@ -29,14 +29,14 @@ ${spec}`,
     });
 
     // --- Step 2: Analyze screenshots ---
-    let actualUI = "No screenshots provided or analysis failed.";
+    let actualUI = "No screenshots provided. Proceeding with spec-only analysis.";
     
     if (screenshots && Array.isArray(screenshots) && screenshots.length > 0) {
       try {
         const screenshotAnalyses = await Promise.all(
           screenshots.map(async (url: string, index: number) => {
             const { text } = await generateText({
-              // Assuming gemini-1.5-pro as it supports multi-modal vision inputs. 
+              // Assuming gemini-2.5-flash as it supports multi-modal vision inputs. 
               model: google('gemini-2.5-flash'),
               messages: [
                 {
@@ -87,26 +87,59 @@ ${actualUI}`,
           z.object({
             title: z.string(),
             severity: z.enum(['critical', 'medium', 'low']),
-            description: z.string(),
+            expected: z.string(),
+            observed: z.string(),
+            impact: z.string(),
+            fix: z.string(),
             evidence: z.string(),
+            confidence: z.enum(['high', 'medium', 'low']),
           })
         ).max(5),
       }),
-      prompt: `Generate a list of issues based on these mismatches.
+      prompt: `Generate concise, actionable issues based on the mismatches.
 
 Each issue must include:
 * title
 * severity (critical, medium, low)
-* description
-* evidence (reference to screenshot or state "None")
+* expected (what the spec requires)
+* observed (what is missing or incorrect in UI)
+* impact (why this is a problem for users or business)
+* fix (clear developer action to resolve it)
+* evidence (reference to screenshot)
+* confidence (high, medium, low based on certainty)
+
+Return valid JSON.
 
 Mismatches:
 ${mismatches}
 
-Limit to max 5 issues. Keep descriptions concise.`,
+Limit to max 5 issues.`,
     });
 
-    return NextResponse.json(object);
+    // --- Step 5: Compute Release Decision ---
+    const hasCritical = object.issues.some((i) => i.severity === 'critical');
+    const mediumCount = object.issues.filter((i) => i.severity === 'medium').length;
+
+    let decisionStatus = 'Ready to Launch';
+    let decisionReason = 'No critical issues and an acceptable number of medium issues identified.';
+
+    if (hasCritical) {
+      decisionStatus = 'Block Release';
+      decisionReason = 'Critical issues found that block the release.';
+    } else if (mediumCount > 2) {
+      decisionStatus = 'Risky';
+      decisionReason = 'More than 2 medium issues found. Risky to launch without addressing them.';
+    }
+
+    const finalOutput = {
+      decision: {
+        status: decisionStatus,
+        reason: decisionReason,
+      },
+      issues: object.issues,
+    };
+
+    return NextResponse.json(finalOutput);
     
   } catch (error) {
     console.error('API /api/analyze error:', error);
