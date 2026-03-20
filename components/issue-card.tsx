@@ -23,6 +23,11 @@ export interface Issue {
   title: string
   severity: ExtendedSeverity
   description: string
+  expected?: string
+  observed?: string
+  impact?: string
+  recommendedFix?: string
+  confidence?: "high" | "medium" | "low"
   evidence?: string
   screenshotRef?: string
 }
@@ -75,6 +80,14 @@ export function IssueCard({
   const [isDismissing, setIsDismissing] = useState(false)
   const [isResolving, setIsResolving] = useState(false)
   const config = severityConfig[issue.severity]
+  const confidenceTone =
+    issue.confidence === "high"
+      ? "border-cyan-400/35 bg-cyan-400/10 text-cyan-100"
+      : issue.confidence === "medium"
+      ? "border-amber-400/35 bg-amber-400/10 text-amber-100"
+      : issue.confidence === "low"
+      ? "border-zinc-400/30 bg-zinc-400/10 text-zinc-200"
+      : null
 
   const handleResolve = async () => {
     try {
@@ -131,6 +144,11 @@ export function IssueCard({
                 Resolved
               </Badge>
             )}
+            {issue.confidence && confidenceTone && (
+              <Badge variant="outline" className={confidenceTone}>
+                {issue.confidence} confidence
+              </Badge>
+            )}
             <Badge className={config.className}>{config.label}</Badge>
           </div>
         </div>
@@ -147,6 +165,48 @@ export function IssueCard({
             <p className="text-sm text-muted-foreground leading-relaxed">
               {issue.description}
             </p>
+
+            {(issue.expected || issue.observed) && (
+              <div className="grid gap-3 rounded-md border border-border/70 bg-background/45 px-3 py-3 md:grid-cols-2">
+                {issue.expected && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Expected
+                    </p>
+                    <p className="mt-1 text-xs text-foreground/90">{issue.expected}</p>
+                  </div>
+                )}
+                {issue.observed && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Observed
+                    </p>
+                    <p className="mt-1 text-xs text-foreground/90">{issue.observed}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(issue.impact || issue.recommendedFix) && (
+              <div className="grid gap-3 rounded-md border border-border/70 bg-background/45 px-3 py-3 md:grid-cols-2">
+                {issue.impact && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Impact
+                    </p>
+                    <p className="mt-1 text-xs text-foreground/90">{issue.impact}</p>
+                  </div>
+                )}
+                {issue.recommendedFix && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Recommended Fix
+                    </p>
+                    <p className="mt-1 text-xs text-foreground/90">{issue.recommendedFix}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {issue.evidence && (
               <div className="rounded-md border border-border/70 bg-background/45 px-3 py-2">

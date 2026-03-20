@@ -38,11 +38,20 @@ const fallbackIssues: Issue[] = [
 ]
 
 type AnalyzeResponse = {
+  decision?: {
+    status: string
+    reason: string
+  }
   issues?: Array<{
     title: string
-    severity: 'critical' | 'high' | 'medium' | 'low'
-    description: string
+    severity: 'critical' | 'medium' | 'low' | 'high'
+    description?: string
+    expected?: string
+    observed?: string
+    impact?: string
+    fix?: string
     evidence?: string
+    confidence?: 'high' | 'medium' | 'low'
   }>
 }
 
@@ -62,24 +71,66 @@ function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
+function extractScreenshotRef(evidence?: string) {
+  if (!evidence) {
+    return undefined
+  }
+
+  const match = evidence.match(/screenshot\s*#?\s*\d+/i)
+  return match?.[0] ?? undefined
+}
+
 function normalizeIssues(payload: AnalyzeResponse): Issue[] {
   const raw = payload.issues ?? []
   return raw.map((issue, index) => ({
     id: `issue-${index + 1}`,
     title: issue.title,
     severity: issue.severity,
-    description: issue.description,
+    description:
+      issue.description ??
+      issue.observed ??
+      'Potential mismatch found between expected product behavior and observed UI.',
+    expected: issue.expected,
+    observed: issue.observed,
+    impact: issue.impact,
+    recommendedFix: issue.fix,
+    confidence: issue.confidence,
     evidence: issue.evidence,
-    screenshotRef: issue.evidence?.includes('Screenshot')
-      ? issue.evidence
-      : undefined,
+    screenshotRef: extractScreenshotRef(issue.evidence),
   }))
+}
+
+function inferDecision(issues: Issue[]) {
+  const criticalCount = issues.filter((issue) => issue.severity === 'critical').length
+  const mediumOrHighCount = issues.filter(
+    (issue) => issue.severity === 'medium' || issue.severity === 'high'
+  ).length
+
+  if (criticalCount > 0) {
+    return {
+      status: 'Block Release',
+      reason: 'Critical issues detected. Resolve blockers before launch.',
+    }
+  }
+
+  if (mediumOrHighCount > 2) {
+    return {
+      status: 'Risky',
+      reason: 'Multiple medium/high issues remain and could impact launch quality.',
+    }
+  }
+
+  return {
+    status: 'Ready to Launch',
+    reason: 'No critical blockers and manageable non-critical risk.',
+  }
 }
 
 export default function LaunchGuardPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
   const [issues, setIssues] = useState<Issue[]>([])
+  const [decision, setDecision] = useState<{ status: string; reason: string } | null>(null)
   const { toast } = useToast()
 
   const headline = useMemo(() => {
@@ -98,6 +149,7 @@ export default function LaunchGuardPage() {
     setIsAnalyzing(true)
     setHasAnalyzed(false)
     setIssues([])
+    setDecision(null)
 
     try {
       const screenshotPayload = await Promise.all(
@@ -122,8 +174,10 @@ export default function LaunchGuardPage() {
       const data = (await response.json()) as AnalyzeResponse
       const normalized = normalizeIssues(data)
       const finalIssues = normalized.length > 0 ? normalized : fallbackIssues
+      const finalDecision = data.decision ?? inferDecision(finalIssues)
 
       setIssues(finalIssues)
+      setDecision(finalDecision)
       setHasAnalyzed(true)
 
       toast({
@@ -133,6 +187,7 @@ export default function LaunchGuardPage() {
     } catch (error) {
       console.error(error)
       setIssues(fallbackIssues)
+      setDecision(inferDecision(fallbackIssues))
       setHasAnalyzed(true)
       toast({
         title: 'API fallback enabled',
@@ -147,6 +202,7 @@ export default function LaunchGuardPage() {
   const handleReAnalyze = () => {
     setHasAnalyzed(false)
     setIssues([])
+    setDecision(null)
     toast({
       title: 'Ready for another pass',
       description: 'Update inputs and trigger the next release-readiness scan.',
@@ -190,7 +246,7 @@ export default function LaunchGuardPage() {
 
           <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/55 px-3 py-1.5 text-xs text-muted-foreground md:flex">
             <Radar className="size-3.5" />
-            Multimodal compare pipeline
+            Spec-to-Screenshot Verification
           </div>
         </div>
       </header>
@@ -203,7 +259,7 @@ export default function LaunchGuardPage() {
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="font-mono text-[11px] tracking-[0.22em] text-cyan-200/85 uppercase">
-                Competitive Hackathon Build
+                Launch Review Workspace
               </p>
               <h2 className="max-w-3xl text-balance font-semibold text-3xl tracking-tight text-foreground md:text-4xl">
                 {headline}
@@ -234,6 +290,7 @@ export default function LaunchGuardPage() {
             </h3>
             <ResultsPanel
               issues={issues}
+              decision={decision}
               isLoading={isAnalyzing}
               hasAnalyzed={hasAnalyzed}
               onCreateIssue={handleCreateIssue}

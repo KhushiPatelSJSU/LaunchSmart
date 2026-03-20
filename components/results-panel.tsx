@@ -15,12 +15,17 @@ import {
   FileSearch,
   Filter,
   RefreshCw,
+  XCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ShareReportDialog } from "@/components/share-report-dialog"
 
 interface ResultsPanelProps {
   issues: Issue[]
+  decision?: {
+    status: string
+    reason: string
+  } | null
   isLoading: boolean
   hasAnalyzed: boolean
   onCreateIssue: (issue: Issue) => void | Promise<void>
@@ -32,6 +37,7 @@ type FilterType = "all" | ExtendedSeverity
 
 export function ResultsPanel({
   issues,
+  decision,
   isLoading,
   hasAnalyzed,
   onCreateIssue,
@@ -117,8 +123,41 @@ export function ResultsPanel({
     { value: "low", label: "Low", count: lowCount },
   ]
 
+  const decisionTone =
+    decision?.status === "Ready to Launch"
+      ? {
+          className: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100",
+          Icon: CheckCircle2,
+        }
+      : decision?.status === "Risky"
+      ? {
+          className: "border-amber-400/35 bg-amber-500/10 text-amber-100",
+          Icon: AlertTriangle,
+        }
+      : {
+          className: "border-red-400/35 bg-red-500/10 text-red-100",
+          Icon: XCircle,
+        }
+
   return (
     <div className="space-y-6">
+      {decision && (
+        <div
+          className={cn(
+            "rounded-lg border px-4 py-3",
+            decisionTone.className
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <decisionTone.Icon className="mt-0.5 size-5 shrink-0" />
+            <div>
+              <p className="font-medium text-sm">Release Decision: {decision.status}</p>
+              <p className="mt-1 text-xs opacity-90">{decision.reason}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <LaunchScoreCard issues={visibleIssues} />
 
       {/* Summary */}
