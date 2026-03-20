@@ -1,12 +1,18 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { InputPanel, type AnalyzeInputPayload } from '@/components/input-panel'
-import { ResultsPanel } from '@/components/results-panel'
 import type { Issue } from '@/components/issue-card'
 import type { DraftIssue } from '@/components/issue-draft-list'
 import { Radar, Shield, Sparkles } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import {
+  createReportId,
+  saveLaunchReport,
+  type LaunchReportRecord,
+  type ReportScore,
+} from '@/lib/report-store'
 
 const fallbackIssues: Issue[] = [
   {
@@ -165,26 +171,50 @@ function inferDecision(issues: Issue[]) {
 }
 
 export default function LaunchGuardPage() {
+  const router = useRouter()
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [hasAnalyzed, setHasAnalyzed] = useState(false)
-  const [issues, setIssues] = useState<Issue[]>([])
-  const [score, setScore] = useState<AnalyzeResponse['score'] | null>(null)
-  const [issueDrafts, setIssueDrafts] = useState<DraftIssue[]>([])
-  const [analysisScreenshots, setAnalysisScreenshots] = useState<string[]>([])
-  const [decision, setDecision] = useState<{ status: string; reason: string } | null>(null)
   const { toast } = useToast()
 
   const headline = useMemo(() => {
     if (isAnalyzing) {
       return 'Running multimodal launch scan...'
     }
+    return 'Upload spec + screenshots. Get ship/no-ship clarity.'
+  }, [isAnalyzing])
 
-    if (!hasAnalyzed) {
-      return 'Upload spec + screenshots. Get ship/no-ship clarity.'
+  const buildReportRecord = ({
+    id,
+    payload,
+    screenshots,
+    issues,
+    issueDrafts,
+    decision,
+    score,
+  }: {
+    id: string
+    payload: AnalyzeInputPayload
+    screenshots: string[]
+    issues: Issue[]
+    issueDrafts: DraftIssue[]
+    decision: { status: string; reason: string } | null
+    score: ReportScore | null
+  }): LaunchReportRecord => {
+    return {
+      id,
+      createdAt: new Date().toISOString(),
+      projectName: payload.projectName,
+      spec: payload.spec,
+      specFileName: payload.specFileName,
+      stagingUrl: payload.stagingUrl,
+      routes: payload.routes,
+      notes: payload.notes,
+      screenshots,
+      issues,
+      issueDrafts,
+      decision,
+      score,
     }
-
-    return `${issues.length} issue${issues.length === 1 ? '' : 's'} detected in your latest analysis.`
-  }, [hasAnalyzed, isAnalyzing, issues.length])
+  }
 
   const handleAnalyze = async (payload: AnalyzeInputPayload) => {
     const {
@@ -198,19 +228,12 @@ export default function LaunchGuardPage() {
     } = payload
 
     setIsAnalyzing(true)
-    setHasAnalyzed(false)
-    setIssues([])
-    setScore(null)
-    setIssueDrafts([])
-    setAnalysisScreenshots([])
-    setDecision(null)
 
     let screenshotPayload: string[] = []
     try {
       screenshotPayload = await Promise.all(
         screenshots.map((file) => fileToDataUrl(file))
       )
-      setAnalysisScreenshots(screenshotPayload)
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -237,62 +260,48 @@ export default function LaunchGuardPage() {
       const normalizedDrafts = normalizeDrafts(data)
       const finalIssues = normalized.length > 0 ? normalized : fallbackIssues
       const finalDecision = data.decision ?? inferDecision(finalIssues)
+      const id = createReportId()
+      const score = data.score ?? null
+      const report = buildReportRecord({
+        id,
+        payload,
+        screenshots: screenshotPayload,
+        issues: finalIssues,
+        issueDrafts: normalizedDrafts,
+        decision: finalDecision,
+        score,
+      })
 
-      setIssues(finalIssues)
-      setScore(data.score ?? null)
-      setIssueDrafts(normalizedDrafts)
-      setDecision(finalDecision)
-      setHasAnalyzed(true)
+      saveLaunchReport(report)
 
       toast({
         title: 'Analysis Complete',
         description: `Found ${finalIssues.length} launch risks worth reviewing.`,
       })
+      router.push(`/analyze/${id}`)
     } catch (error) {
       console.error(error)
-      setIssues(fallbackIssues)
-      setScore(null)
-      setIssueDrafts([])
-      setAnalysisScreenshots(screenshotPayload)
-      setDecision(inferDecision(fallbackIssues))
-      setHasAnalyzed(true)
+      const id = createReportId()
+      const fallbackDecision = inferDecision(fallbackIssues)
+      const report = buildReportRecord({
+        id,
+        payload,
+        screenshots: screenshotPayload,
+        issues: fallbackIssues,
+        issueDrafts: [],
+        decision: fallbackDecision,
+        score: null,
+      })
+      saveLaunchReport(report)
       toast({
         title: 'API fallback enabled',
         description:
           'Could not reach full analysis path, so showing demo findings to keep iteration fast.',
       })
+      router.push(`/analyze/${id}`)
     } finally {
       setIsAnalyzing(false)
     }
-  }
-
-  const handleReAnalyze = () => {
-    setHasAnalyzed(false)
-    setIssues([])
-    setScore(null)
-    setIssueDrafts([])
-    setAnalysisScreenshots([])
-    setDecision(null)
-    toast({
-      title: 'Ready for another pass',
-      description: 'Update inputs and trigger the next release-readiness scan.',
-    })
-  }
-
-  const handleCreateIssue = async (issue: Issue) => {
-    await new Promise((resolve) => setTimeout(resolve, 650))
-    toast({
-      title: 'Issue Drafted',
-      description: `"${issue.title}" is ready to send to GitHub/Linear.`,
-    })
-  }
-
-  const handleDismiss = async (issue: Issue) => {
-    await new Promise((resolve) => setTimeout(resolve, 350))
-    toast({
-      title: 'Issue Dismissed',
-      description: `"${issue.title}" removed from this review pass.`,
-    })
   }
 
   return (
@@ -345,31 +354,10 @@ export default function LaunchGuardPage() {
 
         <section className="grid gap-8 xl:grid-cols-[1.02fr_1fr]">
           <div
-            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6"
+            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6 xl:col-span-2"
             style={{ animationDelay: '170ms' }}
           >
             <InputPanel onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
-          </div>
-
-          <div
-            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6"
-            style={{ animationDelay: '240ms' }}
-          >
-            <h3 className="mb-5 font-medium text-lg tracking-tight text-foreground">
-              Analysis Results
-            </h3>
-            <ResultsPanel
-              issues={issues}
-              screenshotUrls={analysisScreenshots}
-              score={score}
-              issueDrafts={issueDrafts}
-              decision={decision}
-              isLoading={isAnalyzing}
-              hasAnalyzed={hasAnalyzed}
-              onCreateIssue={handleCreateIssue}
-              onDismiss={handleDismiss}
-              onReAnalyze={handleReAnalyze}
-            />
           </div>
         </section>
       </main>
