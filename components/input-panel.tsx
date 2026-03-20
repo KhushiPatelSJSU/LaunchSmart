@@ -1,0 +1,296 @@
+"use client"
+
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { FileText, Image as ImageIcon, Upload, X, Command } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+interface InputPanelProps {
+  onAnalyze: (spec: string, screenshots: File[]) => void
+  isAnalyzing: boolean
+}
+
+const MAX_SPEC_CHARS = 10000
+
+export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
+  const [spec, setSpec] = useState("")
+  const [specFile, setSpecFile] = useState<File | null>(null)
+  const [screenshots, setScreenshots] = useState<File[]>([])
+  const [isDragging, setIsDragging] = useState(false)
+  
+  const specInputRef = useRef<HTMLInputElement>(null)
+  const screenshotInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Keyboard shortcut: Cmd/Ctrl + Enter to analyze
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        if (canAnalyze) {
+          e.preventDefault()
+          handleAnalyze()
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  })
+
+  const handleSpecFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSpecFile(file)
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const content = event.target?.result as string
+        setSpec(content.slice(0, MAX_SPEC_CHARS))
+      }
+      reader.readAsText(file)
+    }
+  }
+
+  const handleScreenshotChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    addScreenshots(files)
+  }
+
+  const addScreenshots = (files: File[]) => {
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"))
+    setScreenshots((prev) => [...prev, ...imageFiles].slice(0, 10))
+  }
+
+  const removeScreenshot = (index: number) => {
+    setScreenshots((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleAnalyze = () => {
+    if (!spec.trim() && screenshots.length === 0) return
+    onAnalyze(spec, screenshots)
+  }
+
+  // Drag and drop handlers
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const files = Array.from(e.dataTransfer.files)
+    addScreenshots(files)
+  }
+
+  const canAnalyze = (spec.trim() || screenshots.length > 0) && !isAnalyzing
+  const charCount = spec.length
+  const charPercentage = (charCount / MAX_SPEC_CHARS) * 100
+
+  return (
+    <div className="space-y-6">
+      {/* Product Spec Section */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-medium">
+            <FileText className="size-4" />
+            Product Spec
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Textarea
+              ref={textareaRef}
+              placeholder="Paste your product specification here..."
+              value={spec}
+              onChange={(e) => setSpec(e.target.value.slice(0, MAX_SPEC_CHARS))}
+              className="min-h-[200px] resize-none bg-input border-border text-foreground placeholder:text-muted-foreground pr-4 pb-8"
+            />
+            <div className="absolute bottom-2 right-2 flex items-center gap-2">
+              <div
+                className={cn(
+                  "h-1 w-16 rounded-full bg-muted overflow-hidden"
+                )}
+              >
+                <div
+                  className={cn(
+                    "h-full transition-all duration-300",
+                    charPercentage > 90
+                      ? "bg-destructive"
+                      : charPercentage > 70
+                      ? "bg-warning"
+                      : "bg-accent"
+                  )}
+                  style={{ width: `${Math.min(charPercentage, 100)}%` }}
+                />
+              </div>
+              <span
+                className={cn(
+                  "text-xs tabular-nums",
+                  charPercentage > 90
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+                )}
+              >
+                {charCount.toLocaleString()}/{MAX_SPEC_CHARS.toLocaleString()}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => specInputRef.current?.click()}
+            >
+              <Upload className="size-4" />
+              Upload File
+            </Button>
+            {specFile && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-2 py-1 rounded">
+                <FileText className="size-3" />
+                <span className="max-w-[150px] truncate">{specFile.name}</span>
+                <button
+                  onClick={() => {
+                    setSpecFile(null)
+                    setSpec("")
+                  }}
+                  className="hover:text-foreground"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={specInputRef}
+            type="file"
+            accept=".txt,.md,.doc,.docx"
+            onChange={handleSpecFileChange}
+            className="hidden"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Screenshots Section */}
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base font-medium">
+              <ImageIcon className="size-4" />
+              Screenshots
+            </CardTitle>
+            {screenshots.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {screenshots.length}/10 images
+              </span>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            onClick={() => screenshotInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={cn(
+              "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 cursor-pointer transition-all duration-200",
+              isDragging
+                ? "border-accent bg-accent/10 scale-[1.02]"
+                : "border-border bg-input/50 hover:border-muted-foreground hover:bg-input"
+            )}
+          >
+            <div
+              className={cn(
+                "rounded-full p-3 transition-colors",
+                isDragging ? "bg-accent/20" : "bg-muted"
+              )}
+            >
+              <Upload
+                className={cn(
+                  "size-6 transition-colors",
+                  isDragging ? "text-accent" : "text-muted-foreground"
+                )}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {isDragging
+                ? "Drop images here..."
+                : "Drag & drop or click to upload"}
+            </p>
+            <p className="text-xs text-muted-foreground/60">
+              PNG, JPG up to 10MB each (max 10 images)
+            </p>
+          </div>
+
+          <input
+            ref={screenshotInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleScreenshotChange}
+            className="hidden"
+          />
+
+          {screenshots.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              {screenshots.map((file, index) => (
+                <div
+                  key={`${file.name}-${index}`}
+                  className="group relative aspect-video overflow-hidden rounded-lg bg-muted ring-1 ring-border hover:ring-accent transition-all"
+                >
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`Screenshot ${index + 1}`}
+                    className="size-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeScreenshot(index)
+                    }}
+                    className="absolute right-1.5 top-1.5 rounded-full bg-background/90 p-1.5 opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
+                    type="button"
+                  >
+                    <X className="size-3" />
+                  </button>
+                  <span className="absolute bottom-1.5 left-1.5 text-xs text-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {index + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Analyze Button */}
+      <Button
+        size="lg"
+        onClick={handleAnalyze}
+        disabled={!canAnalyze}
+        className="w-full group"
+      >
+        {isAnalyzing ? (
+          "Analyzing..."
+        ) : (
+          <span className="flex items-center gap-2">
+            Analyze
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded bg-primary-foreground/20 px-1.5 py-0.5 text-xs font-medium text-primary-foreground/80">
+              <Command className="size-3" />
+              <span>Enter</span>
+            </kbd>
+          </span>
+        )}
+      </Button>
+    </div>
+  )
+}
