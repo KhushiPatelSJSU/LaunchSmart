@@ -1,5 +1,5 @@
 'use client'
-
+import { ThemeToggle } from '@/components/theme-toggle'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { InputPanel, type AnalyzeInputPayload } from '@/components/input-panel'
@@ -323,9 +323,12 @@ export default function LaunchGuardPage() {
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/55 px-3 py-1.5 text-xs text-muted-foreground md:flex">
-            <Radar className="size-3.5" />
-            Spec-to-Screenshot Verification
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/55 px-3 py-1.5 text-xs text-muted-foreground md:flex">
+              <Radar className="size-3.5" />
+              Spec-to-Screenshot Verification
+            </div>
+            <ThemeToggle />
           </div>
         </div>
       </header>
