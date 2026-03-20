@@ -8,6 +8,9 @@ import {
 } from "@/components/issue-card"
 import { LaunchScoreCard } from "@/components/launch-score-card"
 import { AnalysisLoading } from "@/components/analysis-loading"
+import { EvidenceGallery } from "@/components/evidence-gallery"
+import { IssueDraftList } from "@/components/issue-draft-list"
+import { ReportFollowUpPanel } from "@/components/report-follow-up-panel"
 import { Button } from "@/components/ui/button"
 import {
   AlertTriangle,
@@ -22,6 +25,7 @@ import { ShareReportDialog } from "@/components/share-report-dialog"
 
 interface ResultsPanelProps {
   issues: Issue[]
+  screenshotUrls: string[]
   decision?: {
     status: string
     reason: string
@@ -37,6 +41,7 @@ type FilterType = "all" | ExtendedSeverity
 
 export function ResultsPanel({
   issues,
+  screenshotUrls,
   decision,
   isLoading,
   hasAnalyzed,
@@ -229,6 +234,13 @@ export function ResultsPanel({
           ))
         )}
       </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <EvidenceGallery issues={visibleIssues} screenshotUrls={screenshotUrls} />
+        <ReportFollowUpPanel issues={visibleIssues} decision={decision} />
+      </div>
+
+      <IssueDraftList issues={visibleIssues} />
     </div>
   )
 }

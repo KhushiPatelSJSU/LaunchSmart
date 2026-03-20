@@ -2,27 +2,43 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, Image as ImageIcon, Upload, X, Command } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+export interface AnalyzeInputPayload {
+  projectName: string
+  spec: string
+  screenshots: File[]
+  stagingUrl: string
+  routes: string[]
+  notes: string
+  specFileName?: string
+}
+
 interface InputPanelProps {
-  onAnalyze: (spec: string, screenshots: File[]) => void
+  onAnalyze: (payload: AnalyzeInputPayload) => void
   isAnalyzing: boolean
 }
 
 const MAX_SPEC_CHARS = 10000
 
 export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
+  const [projectName, setProjectName] = useState("Release Candidate")
   const [spec, setSpec] = useState("")
   const [specFile, setSpecFile] = useState<File | null>(null)
   const [screenshots, setScreenshots] = useState<File[]>([])
+  const [stagingUrl, setStagingUrl] = useState("")
+  const [routesInput, setRoutesInput] = useState("/, /pricing, /signup, /dashboard")
+  const [notes, setNotes] = useState("")
   const [isDragging, setIsDragging] = useState(false)
-  
+
   const specInputRef = useRef<HTMLInputElement>(null)
   const screenshotInputRef = useRef<HTMLInputElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const canAnalyze = Boolean(spec.trim() || specFile) && !isAnalyzing
 
   // Keyboard shortcut: Cmd/Ctrl + Enter to analyze
   useEffect(() => {
@@ -37,18 +53,36 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isAnalyzing, screenshots.length, spec])
+  }, [canAnalyze, isAnalyzing, screenshots.length, spec])
+
+  const isTextLikeFile = (file: File) => {
+    const textMimes = [
+      "text/plain",
+      "text/markdown",
+      "application/json",
+      "application/xml",
+    ]
+    const lowerName = file.name.toLowerCase()
+    return (
+      textMimes.includes(file.type) ||
+      lowerName.endsWith(".txt") ||
+      lowerName.endsWith(".md") ||
+      lowerName.endsWith(".json")
+    )
+  }
 
   const handleSpecFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setSpecFile(file)
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const content = event.target?.result as string
-        setSpec(content.slice(0, MAX_SPEC_CHARS))
+      if (isTextLikeFile(file)) {
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          const content = event.target?.result as string
+          setSpec(content.slice(0, MAX_SPEC_CHARS))
+        }
+        reader.readAsText(file)
       }
-      reader.readAsText(file)
     }
   }
 
@@ -66,9 +100,36 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
     setScreenshots((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const parseRoutes = (value: string) => {
+    return value
+      .split(/[\n,]/)
+      .map((route) => route.trim())
+      .filter(Boolean)
+  }
+
   const handleAnalyze = () => {
-    if (!spec.trim() && screenshots.length === 0) return
-    onAnalyze(spec, screenshots)
+    const trimmedSpec = spec.trim()
+    const syntheticSpec =
+      specFile && !trimmedSpec
+        ? `Uploaded spec file: ${specFile.name}. ${
+            notes.trim()
+              ? `Additional release context: ${notes.trim()}`
+              : "Use screenshots and release context to produce a preliminary review."
+          }`
+        : ""
+
+    const effectiveSpec = trimmedSpec || syntheticSpec
+    if (!effectiveSpec) return
+
+    onAnalyze({
+      projectName: projectName.trim() || "Release Candidate",
+      spec: effectiveSpec,
+      screenshots,
+      stagingUrl: stagingUrl.trim(),
+      routes: parseRoutes(routesInput),
+      notes: notes.trim(),
+      specFileName: specFile?.name,
+    })
   }
 
   // Drag and drop handlers
@@ -89,12 +150,65 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
     addScreenshots(files)
   }
 
-  const canAnalyze = (spec.trim() || screenshots.length > 0) && !isAnalyzing
   const charCount = spec.length
   const charPercentage = (charCount / MAX_SPEC_CHARS) * 100
 
   return (
     <div className="space-y-6">
+      <Card className="border-border/75 bg-card/60 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium">Project Context</CardTitle>
+          <p className="font-mono text-[11px] tracking-[0.17em] text-muted-foreground uppercase">
+            Name this release and optionally include staging targets
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="project-name">Project Name</Label>
+              <Input
+                id="project-name"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="LaunchGuard Demo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="staging-url">Staging URL (Optional)</Label>
+              <Input
+                id="staging-url"
+                value={stagingUrl}
+                onChange={(e) => setStagingUrl(e.target.value)}
+                placeholder="https://staging.example.com"
+                type="url"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="routes-input">Routes to Check (Optional)</Label>
+            <Textarea
+              id="routes-input"
+              value={routesInput}
+              onChange={(e) => setRoutesInput(e.target.value)}
+              className="min-h-[88px] resize-none"
+              placeholder="/, /pricing, /signup, /dashboard"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Release Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[88px] resize-none"
+              placeholder="Anything to prioritize in review? Known risky areas?"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Product Spec Section */}
       <Card className="border-border/75 bg-card/60 backdrop-blur-sm">
         <CardHeader className="pb-3">
@@ -103,13 +217,12 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
             Product Spec
           </CardTitle>
           <p className="font-mono text-[11px] tracking-[0.17em] text-muted-foreground uppercase">
-            Paste raw requirements or upload a plaintext spec
+            Paste key criteria and optionally attach .pdf/.txt/.md spec files
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
             <Textarea
-              ref={textareaRef}
               placeholder="Paste your product specification here..."
               value={spec}
               onChange={(e) => setSpec(e.target.value.slice(0, MAX_SPEC_CHARS))}
@@ -162,7 +275,6 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
                 <button
                   onClick={() => {
                     setSpecFile(null)
-                    setSpec("")
                   }}
                   className="hover:text-foreground"
                 >
@@ -171,11 +283,14 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
               </div>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Tip: for strongest analysis, keep the most important acceptance criteria in the text box.
+          </p>
 
           <input
             ref={specInputRef}
             type="file"
-            accept=".txt,.md,.doc,.docx"
+            accept=".pdf,.txt,.md,.json,application/pdf,text/plain,text/markdown"
             onChange={handleSpecFileChange}
             className="hidden"
           />

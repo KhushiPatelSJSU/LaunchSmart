@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { InputPanel } from '@/components/input-panel'
+import { InputPanel, type AnalyzeInputPayload } from '@/components/input-panel'
 import { ResultsPanel } from '@/components/results-panel'
 import type { Issue } from '@/components/issue-card'
 import { Radar, Shield, Sparkles } from 'lucide-react'
@@ -130,6 +130,7 @@ export default function LaunchGuardPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
   const [issues, setIssues] = useState<Issue[]>([])
+  const [analysisScreenshots, setAnalysisScreenshots] = useState<string[]>([])
   const [decision, setDecision] = useState<{ status: string; reason: string } | null>(null)
   const { toast } = useToast()
 
@@ -145,16 +146,29 @@ export default function LaunchGuardPage() {
     return `${issues.length} issue${issues.length === 1 ? '' : 's'} detected in your latest analysis.`
   }, [hasAnalyzed, isAnalyzing, issues.length])
 
-  const handleAnalyze = async (spec: string, screenshots: File[]) => {
+  const handleAnalyze = async (payload: AnalyzeInputPayload) => {
+    const {
+      projectName,
+      spec,
+      screenshots,
+      stagingUrl,
+      routes,
+      notes,
+      specFileName,
+    } = payload
+
     setIsAnalyzing(true)
     setHasAnalyzed(false)
     setIssues([])
+    setAnalysisScreenshots([])
     setDecision(null)
 
+    let screenshotPayload: string[] = []
     try {
-      const screenshotPayload = await Promise.all(
+      screenshotPayload = await Promise.all(
         screenshots.map((file) => fileToDataUrl(file))
       )
+      setAnalysisScreenshots(screenshotPayload)
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -162,8 +176,13 @@ export default function LaunchGuardPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          projectName,
           spec,
           screenshots: screenshotPayload,
+          stagingUrl,
+          routes,
+          notes,
+          specFileName,
         }),
       })
 
@@ -187,6 +206,7 @@ export default function LaunchGuardPage() {
     } catch (error) {
       console.error(error)
       setIssues(fallbackIssues)
+      setAnalysisScreenshots(screenshotPayload)
       setDecision(inferDecision(fallbackIssues))
       setHasAnalyzed(true)
       toast({
@@ -202,6 +222,7 @@ export default function LaunchGuardPage() {
   const handleReAnalyze = () => {
     setHasAnalyzed(false)
     setIssues([])
+    setAnalysisScreenshots([])
     setDecision(null)
     toast({
       title: 'Ready for another pass',
@@ -290,6 +311,7 @@ export default function LaunchGuardPage() {
             </h3>
             <ResultsPanel
               issues={issues}
+              screenshotUrls={analysisScreenshots}
               decision={decision}
               isLoading={isAnalyzing}
               hasAnalyzed={hasAnalyzed}
