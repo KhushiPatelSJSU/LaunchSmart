@@ -9,7 +9,7 @@ import {
 import { LaunchScoreCard } from "@/components/launch-score-card"
 import { AnalysisLoading } from "@/components/analysis-loading"
 import { EvidenceGallery } from "@/components/evidence-gallery"
-import { IssueDraftList } from "@/components/issue-draft-list"
+import { IssueDraftList, type DraftIssue } from "@/components/issue-draft-list"
 import { ReportFollowUpPanel } from "@/components/report-follow-up-panel"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +26,16 @@ import { ShareReportDialog } from "@/components/share-report-dialog"
 interface ResultsPanelProps {
   issues: Issue[]
   screenshotUrls: string[]
+  score?: {
+    value: number
+    bucket?: string
+    criticalCount: number
+    highCount: number
+    mediumCount: number
+    lowCount: number
+    uncoveredCriticalCount?: number
+  } | null
+  issueDrafts?: DraftIssue[]
   decision?: {
     status: string
     reason: string
@@ -42,6 +52,8 @@ type FilterType = "all" | ExtendedSeverity
 export function ResultsPanel({
   issues,
   screenshotUrls,
+  score,
+  issueDrafts,
   decision,
   isLoading,
   hasAnalyzed,
@@ -163,7 +175,7 @@ export function ResultsPanel({
         </div>
       )}
 
-      <LaunchScoreCard issues={visibleIssues} />
+      <LaunchScoreCard issues={visibleIssues} score={score} />
 
       {/* Summary */}
       <div className="flex items-center justify-between gap-4 rounded-lg border border-border/70 bg-muted/20 p-3">
@@ -240,7 +252,7 @@ export function ResultsPanel({
         <ReportFollowUpPanel issues={visibleIssues} decision={decision} />
       </div>
 
-      <IssueDraftList issues={visibleIssues} />
+      <IssueDraftList issues={visibleIssues} drafts={issueDrafts} />
     </div>
   )
 }

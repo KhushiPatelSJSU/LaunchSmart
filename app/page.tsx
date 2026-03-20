@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { InputPanel, type AnalyzeInputPayload } from '@/components/input-panel'
 import { ResultsPanel } from '@/components/results-panel'
 import type { Issue } from '@/components/issue-card'
+import type { DraftIssue } from '@/components/issue-draft-list'
 import { Radar, Shield, Sparkles } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -38,10 +39,31 @@ const fallbackIssues: Issue[] = [
 ]
 
 type AnalyzeResponse = {
+  score?: {
+    value: number
+    bucket?: string
+    criticalCount: number
+    highCount: number
+    mediumCount: number
+    lowCount: number
+    uncoveredCriticalCount?: number
+  }
   decision?: {
     status: string
     reason: string
   }
+  issueDrafts?: Array<{
+    id: string
+    title: string
+    severity: 'critical' | 'high' | 'medium' | 'low'
+    description: string
+    expectedBehavior: string
+    actualBehavior: string
+    impact?: string
+    recommendedFix: string
+    evidence: string
+    acceptanceCheck: string
+  }>
   issues?: Array<{
     title: string
     severity: 'critical' | 'medium' | 'low' | 'high'
@@ -100,6 +122,22 @@ function normalizeIssues(payload: AnalyzeResponse): Issue[] {
   }))
 }
 
+function normalizeDrafts(payload: AnalyzeResponse): DraftIssue[] {
+  const raw = payload.issueDrafts ?? []
+  return raw.map((draft) => ({
+    id: draft.id,
+    title: draft.title,
+    severity: draft.severity,
+    description: draft.description,
+    expectedBehavior: draft.expectedBehavior,
+    actualBehavior: draft.actualBehavior,
+    impact: draft.impact ?? draft.description,
+    recommendedFix: draft.recommendedFix,
+    evidence: draft.evidence,
+    acceptanceCheck: draft.acceptanceCheck,
+  }))
+}
+
 function inferDecision(issues: Issue[]) {
   const criticalCount = issues.filter((issue) => issue.severity === 'critical').length
   const mediumOrHighCount = issues.filter(
@@ -130,6 +168,8 @@ export default function LaunchGuardPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
   const [issues, setIssues] = useState<Issue[]>([])
+  const [score, setScore] = useState<AnalyzeResponse['score'] | null>(null)
+  const [issueDrafts, setIssueDrafts] = useState<DraftIssue[]>([])
   const [analysisScreenshots, setAnalysisScreenshots] = useState<string[]>([])
   const [decision, setDecision] = useState<{ status: string; reason: string } | null>(null)
   const { toast } = useToast()
@@ -160,6 +200,8 @@ export default function LaunchGuardPage() {
     setIsAnalyzing(true)
     setHasAnalyzed(false)
     setIssues([])
+    setScore(null)
+    setIssueDrafts([])
     setAnalysisScreenshots([])
     setDecision(null)
 
@@ -192,10 +234,13 @@ export default function LaunchGuardPage() {
 
       const data = (await response.json()) as AnalyzeResponse
       const normalized = normalizeIssues(data)
+      const normalizedDrafts = normalizeDrafts(data)
       const finalIssues = normalized.length > 0 ? normalized : fallbackIssues
       const finalDecision = data.decision ?? inferDecision(finalIssues)
 
       setIssues(finalIssues)
+      setScore(data.score ?? null)
+      setIssueDrafts(normalizedDrafts)
       setDecision(finalDecision)
       setHasAnalyzed(true)
 
@@ -206,6 +251,8 @@ export default function LaunchGuardPage() {
     } catch (error) {
       console.error(error)
       setIssues(fallbackIssues)
+      setScore(null)
+      setIssueDrafts([])
       setAnalysisScreenshots(screenshotPayload)
       setDecision(inferDecision(fallbackIssues))
       setHasAnalyzed(true)
@@ -222,6 +269,8 @@ export default function LaunchGuardPage() {
   const handleReAnalyze = () => {
     setHasAnalyzed(false)
     setIssues([])
+    setScore(null)
+    setIssueDrafts([])
     setAnalysisScreenshots([])
     setDecision(null)
     toast({
@@ -312,6 +361,8 @@ export default function LaunchGuardPage() {
             <ResultsPanel
               issues={issues}
               screenshotUrls={analysisScreenshots}
+              score={score}
+              issueDrafts={issueDrafts}
               decision={decision}
               isLoading={isAnalyzing}
               hasAnalyzed={hasAnalyzed}

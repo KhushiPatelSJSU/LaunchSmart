@@ -6,6 +6,15 @@ import { cn } from '@/lib/utils'
 
 interface LaunchScoreCardProps {
   issues: Issue[]
+  score?: {
+    value: number
+    bucket?: string
+    criticalCount: number
+    highCount: number
+    mediumCount: number
+    lowCount: number
+    uncoveredCriticalCount?: number
+  } | null
 }
 
 const severityPenalty: Record<ExtendedSeverity, number> = {
@@ -43,16 +52,26 @@ function bucketFromScore(score: number) {
   }
 }
 
-export function LaunchScoreCard({ issues }: LaunchScoreCardProps) {
-  const counts = {
+export function LaunchScoreCard({ issues, score: backendScore }: LaunchScoreCardProps) {
+  const fallbackCounts = {
     critical: issues.filter((i) => i.severity === 'critical').length,
     high: issues.filter((i) => i.severity === 'high').length,
     medium: issues.filter((i) => i.severity === 'medium').length,
     low: issues.filter((i) => i.severity === 'low').length,
   }
 
-  const deduction = issues.reduce((acc, issue) => acc + severityPenalty[issue.severity], 0)
-  const score = Math.max(0, Math.round(100 - deduction))
+  const fallbackDeduction = issues.reduce((acc, issue) => acc + severityPenalty[issue.severity], 0)
+  const fallbackScore = Math.max(0, Math.round(100 - fallbackDeduction))
+
+  const score = backendScore?.value ?? fallbackScore
+  const counts = backendScore
+    ? {
+        critical: backendScore.criticalCount,
+        high: backendScore.highCount,
+        medium: backendScore.mediumCount,
+        low: backendScore.lowCount,
+      }
+    : fallbackCounts
   const bucket = bucketFromScore(score)
   const Icon = bucket.icon
 

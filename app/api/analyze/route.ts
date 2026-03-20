@@ -6,6 +6,99 @@ import { z } from 'zod';
 // Increase max duration for Vercel Hobby/Pro plans (if needed for 4 sequential calls)
 export const maxDuration = 60; 
 
+type Severity = 'critical' | 'high' | 'medium' | 'low';
+type Confidence = 'high' | 'medium' | 'low';
+
+type GeneratedIssue = {
+  title: string;
+  severity: Severity;
+  expected: string;
+  observed: string;
+  impact: string;
+  fix: string;
+  evidence: string;
+  confidence: Confidence;
+};
+
+function severityWeight(severity: Severity) {
+  if (severity === 'critical') return 4;
+  if (severity === 'high') return 3;
+  if (severity === 'medium') return 2;
+  return 1;
+}
+
+function confidenceWeight(confidence: Confidence) {
+  if (confidence === 'high') return 3;
+  if (confidence === 'medium') return 2;
+  return 1;
+}
+
+function computeScore(issues: GeneratedIssue[]) {
+  const criticalCount = issues.filter((issue) => issue.severity === 'critical').length;
+  const highCount = issues.filter((issue) => issue.severity === 'high').length;
+  const mediumCount = issues.filter((issue) => issue.severity === 'medium').length;
+  const lowCount = issues.filter((issue) => issue.severity === 'low').length;
+
+  const uncoveredCriticalCount = issues.filter(
+    (issue) =>
+      issue.severity === 'critical' &&
+      /(^none$|not visible|not provided|unknown|unable to verify)/i.test(issue.evidence)
+  ).length;
+
+  let value = 100;
+  value -= criticalCount * 25;
+  value -= highCount * 10;
+  value -= mediumCount * 4;
+  value -= uncoveredCriticalCount * 6;
+  value = Math.max(0, value);
+
+  const bucket =
+    value >= 90 ? 'ready' : value >= 70 ? 'launch_with_caution' : 'not_launch_ready';
+
+  return {
+    value,
+    bucket,
+    criticalCount,
+    highCount,
+    mediumCount,
+    lowCount,
+    uncoveredCriticalCount,
+  };
+}
+
+function decisionFromScore(score: ReturnType<typeof computeScore>) {
+  if (score.bucket === 'ready') {
+    return {
+      status: 'Ready to Launch',
+      reason: 'No major blockers detected and launch risk is acceptable.',
+    };
+  }
+  if (score.bucket === 'launch_with_caution') {
+    return {
+      status: 'Risky',
+      reason: 'Moderate launch risk detected. Address priority issues before release.',
+    };
+  }
+  return {
+    status: 'Block Release',
+    reason: 'Critical blockers or significant launch risk detected.',
+  };
+}
+
+function buildIssueDrafts(issues: GeneratedIssue[]) {
+  return issues.map((issue, index) => ({
+    id: `LG-${index + 1}`,
+    title: issue.title,
+    severity: issue.severity,
+    description: issue.impact,
+    expectedBehavior: issue.expected,
+    actualBehavior: issue.observed,
+    recommendedFix: issue.fix,
+    evidence: issue.evidence,
+    acceptanceCheck: `Re-run LaunchGuard and confirm "${issue.title}" no longer appears as a blocker.`,
+  }));
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -86,7 +179,7 @@ ${actualUI}`,
         issues: z.array(
           z.object({
             title: z.string(),
-            severity: z.enum(['critical', 'medium', 'low']),
+            severity: z.enum(['critical', 'high', 'medium', 'low']),
             expected: z.string(),
             observed: z.string(),
             impact: z.string(),
@@ -100,7 +193,7 @@ ${actualUI}`,
 
 Each issue must include:
 * title
-* severity (critical, medium, low)
+* severity (critical, high, medium, low)
 * expected (what the spec requires)
 * observed (what is missing or incorrect in UI)
 * impact (why this is a problem for users or business)
@@ -116,26 +209,23 @@ ${mismatches}
 Limit to max 5 issues.`,
     });
 
-    // --- Step 5: Compute Release Decision ---
-    const hasCritical = object.issues.some((i) => i.severity === 'critical');
-    const mediumCount = object.issues.filter((i) => i.severity === 'medium').length;
-
-    let decisionStatus = 'Ready to Launch';
-    let decisionReason = 'No critical issues and an acceptable number of medium issues identified.';
-
-    if (hasCritical) {
-      decisionStatus = 'Block Release';
-      decisionReason = 'Critical issues found that block the release.';
-    } else if (mediumCount > 2) {
-      decisionStatus = 'Risky';
-      decisionReason = 'More than 2 medium issues found. Risky to launch without addressing them.';
-    }
+    // --- Step 5: Deterministic scoring and issue draft generation ---
+    const score = computeScore(object.issues);
+    const decision = decisionFromScore(score);
+    const topBlockers = [...object.issues]
+      .sort((a, b) => {
+        const severityDelta = severityWeight(b.severity) - severityWeight(a.severity);
+        if (severityDelta !== 0) return severityDelta;
+        return confidenceWeight(b.confidence) - confidenceWeight(a.confidence);
+      })
+      .slice(0, 3);
+    const issueDrafts = buildIssueDrafts(object.issues);
 
     const finalOutput = {
-      decision: {
-        status: decisionStatus,
-        reason: decisionReason,
-      },
+      decision,
+      score,
+      topBlockers,
+      issueDrafts,
       issues: object.issues,
     };
 

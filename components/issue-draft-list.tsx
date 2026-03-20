@@ -10,9 +10,10 @@ import { useToast } from "@/hooks/use-toast"
 
 interface IssueDraftListProps {
   issues: Issue[]
+  drafts?: DraftIssue[]
 }
 
-interface DraftIssue {
+export interface DraftIssue {
   id: string
   title: string
   severity: Issue["severity"]
@@ -69,11 +70,14 @@ function toMarkdown(draft: DraftIssue) {
   ].join("\n")
 }
 
-export function IssueDraftList({ issues }: IssueDraftListProps) {
+export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftListProps) {
   const [copyingId, setCopyingId] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const drafts = useMemo(() => issues.map((issue, index) => toDraft(issue, index)), [issues])
+  const drafts = useMemo(
+    () => backendDrafts ?? issues.map((issue, index) => toDraft(issue, index)),
+    [backendDrafts, issues]
+  )
 
   const copyDraft = async (draft: DraftIssue) => {
     try {
