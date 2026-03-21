@@ -1,5 +1,5 @@
 "use client"
-
+import { PRChecker } from "@/components/pr-checker"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
@@ -192,6 +192,7 @@ export default function AnalyzeReportPage() {
           }}
         />
       </Card>
+      <PRChecker spec={report.spec} />
     </main>
   )
 }
