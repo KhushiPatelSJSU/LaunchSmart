@@ -42,6 +42,7 @@ export async function getReportById(id: string) {
   }
 
   // Map DB structure back to our expected shape
+  const numericScore = typeof data.score === "number" ? data.score : Number(data.score) || 0
   return {
     id: data.id,
     projectName: data.project_name,
@@ -50,7 +51,13 @@ export async function getReportById(id: string) {
     spec: data.spec_text,
     screenshots: data.screenshots || [],
     issues: data.issues || [],
-    score: { value: data.score },
+    score: {
+      value: numericScore,
+      criticalCount: 0,
+      highCount: 0,
+      mediumCount: 0,
+      lowCount: 0,
+    },
     decision: { status: data.decision, reason: "" },
     routes: [], // if not in schema, default empty
     notes: "",

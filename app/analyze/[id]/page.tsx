@@ -10,7 +10,8 @@ import type { DraftIssue } from "@/components/issue-draft-list"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { type LaunchReportRecord } from "@/lib/report-store"
+import { getSession } from "@/lib/auth"
+import { getLaunchReport, type LaunchReportRecord } from "@/lib/report-store"
 import { getReportById } from "@/lib/reports"
 
 export default function AnalyzeReportPage() {
@@ -27,7 +28,23 @@ export default function AnalyzeReportPage() {
   }, [params])
 
   const [isLoading, setIsLoading] = useState(true)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [report, setReport] = useState<LaunchReportRecord | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    getSession().then((session) => {
+      if (!mounted) return
+      if (!session) {
+        router.replace("/")
+        return
+      }
+      setIsCheckingSession(false)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [router])
 
   useEffect(() => {
     if (!reportId) {
@@ -37,13 +54,22 @@ export default function AnalyzeReportPage() {
     }
     
     getReportById(reportId).then((loaded) => {
-      setReport(loaded)
+      setReport(loaded ?? getLaunchReport(reportId))
       setIsLoading(false)
     }).catch(err => {
       console.error(err)
+      setReport(getLaunchReport(reportId))
       setIsLoading(false)
     })
   }, [reportId])
+
+  if (isCheckingSession) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-6">
+        <p className="text-sm text-muted-foreground">Checking session...</p>
+      </main>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -65,7 +91,7 @@ export default function AnalyzeReportPage() {
               This report is not available on the current device. Run a fresh
               analysis to generate a new report artifact.
             </p>
-            <Link href="/">
+            <Link href="/dashboard">
               <Button>
                 <ArrowLeft className="size-4" />
                 Back to Upload
@@ -90,7 +116,7 @@ export default function AnalyzeReportPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{report.projectName}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/">
+          <Link href="/dashboard">
             <Button variant="outline">
               <ArrowLeft className="size-4" />
               New Analysis
@@ -162,7 +188,7 @@ export default function AnalyzeReportPage() {
             })
           }}
           onReAnalyze={() => {
-            router.push("/")
+            router.push("/dashboard")
           }}
         />
       </Card>

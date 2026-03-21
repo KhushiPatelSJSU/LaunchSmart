@@ -38,7 +38,7 @@ export function Navbar() {
   return (
     <header className="relative z-50 animate-fade-in border-b border-border/60 bg-background/60 backdrop-blur-md">
       <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+        <Link href={session ? "/dashboard" : "/"} className="flex items-center gap-3 transition-opacity hover:opacity-80">
           <div className="flex size-10 items-center justify-center rounded-xl border border-cyan-400/35 bg-cyan-300/10 shadow-[0_0_30px_rgba(34,211,238,0.2)]">
             <Shield className="size-5 text-cyan-200" />
           </div>
@@ -66,6 +66,11 @@ export function Navbar() {
                     {session.email}
                   </span>
                   <Link href="/dashboard">
+                    <Button variant="ghost" size="sm" className="hidden sm:flex">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Link href="/history">
                     <Button variant="ghost" size="sm" className="hidden sm:flex">
                       History
                     </Button>

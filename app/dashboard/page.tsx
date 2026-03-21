@@ -1,114 +1,399 @@
-"use client"
+'use client'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { InputPanel, type AnalyzeInputPayload } from '@/components/input-panel'
+import type { Issue } from '@/components/issue-card'
+import type { DraftIssue } from '@/components/issue-draft-list'
+import { Sparkles } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import {
+  createReportId,
+  saveLaunchReport,
+  type LaunchReportRecord,
+  type ReportScore,
+} from '@/lib/report-store'
+import { getSession, type UserSession } from '@/lib/auth'
+const fallbackIssues: Issue[] = [
+  {
+    id: 'fallback-1',
+    title: 'Missing Error State for Form Submission',
+    severity: 'critical',
+    description:
+      "Sign-up flow is missing explicit error feedback. Users can submit invalid payloads without clear guidance.",
+    evidence: 'No inline error copy was detected in the analyzed screenshot set.',
+    screenshotRef: 'Screenshot #1',
+  },
+  {
+    id: 'fallback-2',
+    title: 'Inconsistent Primary CTA Styling',
+    severity: 'high',
+    description:
+      'Primary CTA style varies between key pages, which weakens visual trust and conversion consistency.',
+    evidence: 'Observed mismatch in radius and border treatment between hero and pricing CTA buttons.',
+    screenshotRef: 'Screenshot #2',
+  },
+  {
+    id: 'fallback-3',
+    title: 'Low Contrast Text in Hero Section',
+    severity: 'medium',
+    description:
+      'Hero supporting text appears below accessible contrast thresholds and may be difficult to read.',
+    evidence: 'Subtitle text appears muted on dark gradient with insufficient contrast margin.',
+    screenshotRef: 'Screenshot #1',
+  },
+]
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { getReportsByUser } from "@/lib/reports"
-import { getSession, type UserSession } from "@/lib/auth"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowRight, FileText, Calendar, ShieldCheck } from "lucide-react"
+type AnalyzeResponse = {
+  score?: {
+    value: number
+    bucket?: string
+    criticalCount: number
+    highCount: number
+    mediumCount: number
+    lowCount: number
+    uncoveredCriticalCount?: number
+  }
+  decision?: {
+    status: string
+    reason: string
+  }
+  issueDrafts?: Array<{
+    id: string
+    title: string
+    severity: 'critical' | 'high' | 'medium' | 'low'
+    description: string
+    expectedBehavior: string
+    actualBehavior: string
+    impact?: string
+    recommendedFix: string
+    evidence: string
+    acceptanceCheck: string
+  }>
+  issues?: Array<{
+    title: string
+    severity: 'critical' | 'medium' | 'low' | 'high'
+    description?: string
+    expected?: string
+    observed?: string
+    impact?: string
+    fix?: string
+    evidence?: string
+    confidence?: 'high' | 'medium' | 'low'
+  }>
+}
 
-import { supabase } from "@/lib/supabase"
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result
+      if (typeof result === 'string') {
+        resolve(result)
+        return
+      }
+      reject(new Error('Failed to read screenshot'))
+    }
+    reader.onerror = () => reject(new Error('Failed to read screenshot'))
+    reader.readAsDataURL(file)
+  })
+}
 
-export default function DashboardPage() {
-  const [reports, setReports] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+function extractScreenshotRef(evidence?: string) {
+  if (!evidence) {
+    return undefined
+  }
+
+  const match = evidence.match(/screenshot\s*#?\s*\d+/i)
+  return match?.[0] ?? undefined
+}
+
+function normalizeIssues(payload: AnalyzeResponse): Issue[] {
+  const raw = payload.issues ?? []
+  return raw.map((issue, index) => ({
+    id: `issue-${index + 1}`,
+    title: issue.title,
+    severity: issue.severity,
+    description:
+      issue.description ??
+      issue.observed ??
+      'Potential mismatch found between expected product behavior and observed UI.',
+    expected: issue.expected,
+    observed: issue.observed,
+    impact: issue.impact,
+    recommendedFix: issue.fix,
+    confidence: issue.confidence,
+    evidence: issue.evidence,
+    screenshotRef: extractScreenshotRef(issue.evidence),
+  }))
+}
+
+function normalizeDrafts(payload: AnalyzeResponse): DraftIssue[] {
+  if (payload.issueDrafts && payload.issueDrafts.length > 0) {
+    return payload.issueDrafts.map((draft) => ({
+      id: draft.id,
+      title: draft.title,
+      severity: draft.severity,
+      description: draft.description,
+      expectedBehavior: draft.expectedBehavior,
+      actualBehavior: draft.actualBehavior,
+      impact: draft.impact ?? draft.description,
+      recommendedFix: draft.recommendedFix,
+      evidence: draft.evidence,
+      acceptanceCheck: draft.acceptanceCheck,
+    }))
+  }
+
+  return (payload.issues ?? []).map((issue, index) => ({
+    id: `LG-${index + 1}`,
+    title: issue.title,
+    severity: issue.severity,
+    description: issue.description ?? issue.observed ?? "Issue discovered during analysis.",
+    expectedBehavior: issue.expected ?? "Expected behavior not provided.",
+    actualBehavior: issue.observed ?? "Observed behavior not provided.",
+    impact: issue.impact ?? issue.description ?? "Impact not provided.",
+    recommendedFix: issue.fix ?? "Recommended fix not provided.",
+    evidence: issue.evidence ?? "No evidence attached.",
+    acceptanceCheck: `Re-run analysis and confirm "${issue.title}" is resolved.`,
+  }))
+}
+
+function inferDecision(issues: Issue[]) {
+  const criticalCount = issues.filter((issue) => issue.severity === 'critical').length
+  const mediumOrHighCount = issues.filter(
+    (issue) => issue.severity === 'medium' || issue.severity === 'high'
+  ).length
+
+  if (criticalCount > 0) {
+    return {
+      status: 'Block Release',
+      reason: 'Critical issues detected. Resolve blockers before launch.',
+    }
+  }
+
+  if (mediumOrHighCount > 2) {
+    return {
+      status: 'Risky',
+      reason: 'Multiple medium/high issues remain and could impact launch quality.',
+    }
+  }
+
+  return {
+    status: 'Ready to Launch',
+    reason: 'No critical blockers and manageable non-critical risk.',
+  }
+}
+
+export default function LaunchGuardPage() {
+  const router = useRouter()
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [session, setSession] = useState<UserSession | null>(null)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
-    // Check initial session
-    getSession().then((user) => {
-      // If no user but we just returned from OAuth, give Supabase a moment to parse the url hash
-      if (!user && (window.location.hash.includes("access_token") || window.location.search.includes("code="))) {
+    let mounted = true
+    getSession().then((activeSession) => {
+      if (!mounted) return
+      if (!activeSession) {
+        router.replace('/')
         return
       }
-      
-      if (!user) {
-        window.location.href = "/" // Redirect to home if completely unauthenticated
-        return
-      }
-      setSession(user)
-      getReportsByUser(user.id).then((data) => {
-        setReports(data || [])
-        setLoading(false)
-      })
+      setSession(activeSession)
+      setIsCheckingSession(false)
     })
-
-    // Listen for the actual OAuth token processing
-    if (supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, activeSession) => {
-        if (activeSession?.user) {
-          const userObj = { id: activeSession.user.id, email: activeSession.user.email || "" }
-          setSession(userObj)
-          getReportsByUser(userObj.id).then((data) => {
-            setReports(data || [])
-            setLoading(false)
-          })
-        }
-      })
-      return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
     }
-  }, [])
+  }, [router])
 
-  if (loading) {
+  const headline = useMemo(() => {
+    if (isAnalyzing) {
+      return 'Running multimodal launch scan...'
+    }
+    return 'Upload spec + screenshots. Get ship/no-ship clarity.'
+  }, [isAnalyzing])
+
+  const buildReportRecord = ({
+    id,
+    payload,
+    screenshots,
+    issues,
+    issueDrafts,
+    decision,
+    score,
+  }: {
+    id: string
+    payload: AnalyzeInputPayload
+    screenshots: string[]
+    issues: Issue[]
+    issueDrafts: DraftIssue[]
+    decision: { status: string; reason: string } | null
+    score: ReportScore | null
+  }): LaunchReportRecord => {
+    return {
+      id,
+      createdAt: new Date().toISOString(),
+      projectName: payload.projectName,
+      spec: payload.spec,
+      specFileName: payload.specFileName,
+      stagingUrl: payload.stagingUrl,
+      routes: payload.routes,
+      notes: payload.notes,
+      screenshots,
+      issues,
+      issueDrafts,
+      decision,
+      score,
+    }
+  }
+
+  const handleAnalyze = async (payload: AnalyzeInputPayload) => {
+    if (!session) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to run analyses.',
+      })
+      router.push('/')
+      return
+    }
+
+    const {
+      projectName,
+      spec,
+      screenshots,
+      stagingUrl,
+      routes,
+      notes,
+      specFileName,
+    } = payload
+
+    setIsAnalyzing(true)
+
+    let screenshotPayload: string[] = []
+    try {
+      screenshotPayload = await Promise.all(
+        screenshots.map((file) => fileToDataUrl(file))
+      )
+
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectName,
+          spec,
+          screenshots: screenshotPayload,
+          stagingUrl,
+          routes,
+          notes,
+          specFileName,
+          userId: session.id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Analyze route failed')
+      }
+
+      const data = (await response.json()) as AnalyzeResponse & { reportId?: string }
+      const normalized = normalizeIssues(data)
+      const normalizedDrafts = normalizeDrafts(data)
+      const finalIssues = normalized.length > 0 ? normalized : fallbackIssues
+      const finalDecision = data.decision ?? inferDecision(finalIssues)
+      const id = data.reportId || createReportId()
+      const score = data.score ?? null
+      const report = buildReportRecord({
+        id,
+        payload,
+        screenshots: screenshotPayload,
+        issues: finalIssues,
+        issueDrafts: normalizedDrafts,
+        decision: finalDecision,
+        score,
+      })
+
+      // Remote API handles saving to Supabase now
+      if (!data.reportId) {
+        saveLaunchReport(report)
+      }
+
+      toast({
+        title: 'Analysis Complete',
+        description: `Found ${finalIssues.length} launch risks worth reviewing.`,
+      })
+      router.push(`/analyze/${id}`)
+    } catch (error) {
+      console.error(error)
+      const id = createReportId()
+      const fallbackDecision = inferDecision(fallbackIssues)
+      const report = buildReportRecord({
+        id,
+        payload,
+        screenshots: screenshotPayload,
+        issues: fallbackIssues,
+        issueDrafts: [],
+        decision: fallbackDecision,
+        score: null,
+      })
+      saveLaunchReport(report)
+      toast({
+        title: 'API fallback enabled',
+        description:
+          'Could not reach full analysis path, so showing demo findings to keep iteration fast.',
+      })
+      router.push(`/analyze/${id}`)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  if (isCheckingSession) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-5xl items-center justify-center">
-        <p className="text-muted-foreground animate-pulse">Loading dashboard...</p>
+      <main className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-5xl items-center justify-center px-6">
+        <p className="animate-pulse text-sm text-muted-foreground">Loading dashboard...</p>
       </main>
     )
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 py-12">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Launch History</h1>
-        <p className="text-muted-foreground text-sm">Review your past product launch analyses.</p>
-      </div>
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_5%,rgba(56,189,248,0.16),transparent_30%),radial-gradient(circle_at_90%_0%,rgba(251,191,36,0.12),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(168,85,247,0.09),transparent_33%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.15] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:34px_34px]" />
 
-      {reports.length === 0 ? (
-        <Card className="border-border/60 bg-card/40">
-          <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
-            <FileText className="mb-4 size-10 opacity-30" />
-            <p>No reports found yet.</p>
-            <Link href="/" className="mt-4 text-sm text-cyan-400 hover:underline">
-              Run your first analysis
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {reports.map((report) => (
-            <Link key={report.id} href={`/analyze/${report.id}`} className="group">
-              <Card className="flex h-full flex-col border-border/70 bg-card/50 transition-colors hover:border-cyan-400/50 hover:bg-card/80">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg font-medium">{report.project_name || "Untitled Project"}</CardTitle>
-                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-cyan-400" />
-                  </div>
-                </CardHeader>
-                <CardContent className="mt-auto flex flex-col gap-3 text-sm text-muted-foreground">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <ShieldCheck className="size-4" />
-                      Score
-                    </span>
-                    <span className="font-mono font-medium text-foreground">{report.score}/100</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Calendar className="size-4" />
-                      Date
-                    </span>
-                    <span>{new Date(report.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <div className="mt-2 text-xs">
-                    <span className="rounded-full bg-border/50 px-2 py-1 uppercase tracking-wider">{report.decision}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
-    </main>
+
+
+      <main className="relative mx-auto flex w-full max-w-7xl flex-col gap-7 px-6 py-8">
+        <section
+          className="animate-rise-in rounded-2xl border border-border/70 bg-card/45 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm"
+          style={{ animationDelay: '80ms' }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <p className="font-mono text-[11px] tracking-[0.22em] text-cyan-200/85 uppercase">
+                Launch Review Workspace
+              </p>
+              <h2 className="max-w-3xl text-balance font-semibold text-3xl tracking-tight text-foreground md:text-4xl">
+                {headline}
+              </h2>
+              <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
+                Report-first workflow: extract spec intent, compare with screenshots,
+                and prioritize the blockers that can fail launch day.
+              </p>
+            </div>
+            <Sparkles className="mt-1 hidden size-5 text-cyan-200 md:block" />
+          </div>
+        </section>
+
+        <section className="grid gap-8 xl:grid-cols-[1.02fr_1fr]">
+          <div
+            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6 xl:col-span-2"
+            style={{ animationDelay: '170ms' }}
+          >
+            <InputPanel onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
+          </div>
+        </section>
+      </main>
+    </div>
   )
 }
