@@ -52,11 +52,6 @@ function getRedirectToDashboard() {
   return `${window.location.origin}/dashboard`
 }
 
-function getLastSignedInEmail() {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem(LAST_SIGNED_IN_EMAIL_KEY)
-}
-
 export async function signUpWithEmail(emailInput: string) {
   const email = normalizeEmail(emailInput)
   if (!isValidEmail(email)) {
@@ -92,39 +87,6 @@ export async function signUpWithEmail(emailInput: string) {
   saveMockSession(user)
 }
 
-export async function signInWithEmail(emailInput: string) {
-  const email = normalizeEmail(emailInput)
-  if (!isValidEmail(email)) {
-    throw new Error("Please enter a valid email address.")
-  }
-
-  if (supabase) {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LAST_SIGNED_IN_EMAIL_KEY, email)
-    }
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: getRedirectToDashboard(),
-      },
-    })
-    if (error) {
-      if (error.message.toLowerCase().includes("rate limit")) {
-        throw new Error("Email rate limit exceeded")
-      }
-      throw new Error(error.message)
-    }
-    return
-  }
-
-  const users = getStoredMockUsers()
-  const existing = users.find((user) => user.email === email)
-  if (!existing) {
-    throw new Error("No account found for this email. Please sign up first.")
-  }
-  saveMockSession(existing)
-}
-
 export async function signIn() {
   if (supabase) {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -139,7 +101,9 @@ export async function signIn() {
     return
   }
 
-  const email = getLastSignedInEmail() ?? "mock-user@example.com"
+  const email = typeof window !== "undefined" 
+    ? localStorage.getItem(LAST_SIGNED_IN_EMAIL_KEY) ?? "mock-user@example.com"
+    : "mock-user@example.com"
   await signUpWithEmail(email)
   if (typeof window !== "undefined") {
     window.location.href = "/dashboard"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Github, LogIn, Mail } from 'lucide-react'
+import { Github, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast'
 import {
   getSession,
   signIn,
-  signInWithEmail,
   signUpWithEmail,
 } from '@/lib/auth'
 
@@ -36,7 +35,7 @@ export default function HomePage() {
     }
   }, [router])
 
-  const handleEmailAuth = async (mode: 'signup' | 'signin') => {
+  const handleEmailAuth = async () => {
     const normalized = email.trim().toLowerCase()
     if (!normalized) {
       toast({
@@ -48,14 +47,10 @@ export default function HomePage() {
 
     setIsLoading(true)
     try {
-      if (mode === 'signup') {
-        await signUpWithEmail(normalized)
-      } else {
-        await signInWithEmail(normalized)
-      }
+      await signUpWithEmail(normalized)
 
       toast({
-        title: mode === 'signup' ? 'Sign-up started' : 'Sign-in started',
+        title: 'Continuing with email',
         description:
           'If you use Supabase email auth, check your inbox. If mock mode is active, you are signed in now.',
       })
@@ -75,7 +70,7 @@ export default function HomePage() {
         return
       }
       toast({
-        title: mode === 'signup' ? 'Sign-up failed' : 'Sign-in failed',
+        title: 'Email auth failed',
         description: message,
       })
     } finally {
@@ -122,26 +117,16 @@ export default function HomePage() {
               onChange={(event) => setEmail(event.target.value)}
               disabled={isLoading}
             />
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Button
-                type="button"
-                variant="default"
-                disabled={isLoading}
-                onClick={() => handleEmailAuth('signup')}
-              >
-                <Mail className="size-4" />
-                Sign Up with Email
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isLoading}
-                onClick={() => handleEmailAuth('signin')}
-              >
-                <LogIn className="size-4" />
-                Sign In with Email
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="default"
+              className="w-full"
+              disabled={isLoading}
+              onClick={handleEmailAuth}
+            >
+              <Mail className="size-4" />
+              Sign up/Sign in with Email
+            </Button>
           </div>
 
           <Button
