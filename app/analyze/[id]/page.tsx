@@ -10,7 +10,8 @@ import type { DraftIssue } from "@/components/issue-draft-list"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { getLaunchReport, type LaunchReportRecord } from "@/lib/report-store"
+import { type LaunchReportRecord } from "@/lib/report-store"
+import { getReportById } from "@/lib/reports"
 
 export default function AnalyzeReportPage() {
   const params = useParams<{ id: string }>()
@@ -34,9 +35,14 @@ export default function AnalyzeReportPage() {
       setReport(null)
       return
     }
-    const loaded = getLaunchReport(reportId)
-    setReport(loaded)
-    setIsLoading(false)
+    
+    getReportById(reportId).then((loaded) => {
+      setReport(loaded)
+      setIsLoading(false)
+    }).catch(err => {
+      console.error(err)
+      setIsLoading(false)
+    })
   }, [reportId])
 
   if (isLoading) {

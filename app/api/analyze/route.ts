@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateText, generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { z } from 'zod';
+import { createReport } from '@/lib/reports';
 
 // Increase max duration for Vercel Hobby/Pro plans (if needed for 4 sequential calls)
 export const maxDuration = 60; 
@@ -102,7 +103,7 @@ function buildIssueDrafts(issues: GeneratedIssue[]) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { spec, screenshots } = body;
+    const { spec, screenshots, userId, projectName, stagingUrl } = body;
 
     if (!spec) {
       return NextResponse.json(
@@ -229,7 +230,28 @@ Limit to max 5 issues.`,
       issues: object.issues,
     };
 
-    return NextResponse.json(finalOutput);
+    let reportId = undefined;
+    if (userId) {
+      reportId = await createReport({
+        id: '',
+        createdAt: new Date().toISOString(),
+        projectName: projectName || 'Untitled',
+        spec,
+        stagingUrl: stagingUrl || '',
+        routes: [],
+        notes: '',
+        screenshots: screenshots || [],
+        issues: object.issues as any,
+        issueDrafts: issueDrafts as any,
+        decision,
+        score
+      }, userId).catch(err => {
+        console.error("Failed to save report to supabase:", err);
+        return undefined;
+      });
+    }
+
+    return NextResponse.json({ ...finalOutput, reportId });
     
   } catch (error) {
     console.error('API /api/analyze error:', error);
