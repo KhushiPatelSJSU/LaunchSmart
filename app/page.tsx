@@ -63,9 +63,9 @@ export default function HomePage() {
       const message = error instanceof Error ? error.message : 'Please try again.'
       if (message.toLowerCase().includes('rate limit')) {
         toast({
-          title: 'Check your inbox',
+          title: 'Too many sign-in attempts',
           description:
-            'A sign-in email was sent recently. Use the latest email link, or wait about a minute before requesting another.',
+            'You can only request 2 sign-in emails per hour. Please try again later.',
         })
         return
       }
