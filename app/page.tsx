@@ -129,7 +129,7 @@ function normalizeIssues(payload: AnalyzeResponse): Issue[] {
 }
 
 function normalizeDrafts(payload: AnalyzeResponse): DraftIssue[] {
-  const raw = payload.issueDrafts ?? []
+  const raw = payload.issueDrafts ?? payload.issues ?? []
   return raw.map((draft) => ({
     id: draft.id,
     title: draft.title,
