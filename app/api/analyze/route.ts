@@ -105,6 +105,30 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { spec, screenshots, userId, projectName, stagingUrl } = body;
 
+    if (screenshots && Array.isArray(screenshots)) {
+      const totalScreenshotBytes = screenshots.reduce((sum: number, dataUrl: string) => {
+        try {
+          const prefix = "base64,"
+          const idx = dataUrl.indexOf(prefix)
+          if (idx < 0) return sum
+          const base64Data = dataUrl.slice(idx + prefix.length)
+          return sum + Math.ceil((base64Data.length * 3) / 4)
+        } catch {
+          return sum
+        }
+      }, 0)
+
+      if (totalScreenshotBytes > 10 * 1024 * 1024) {
+        return NextResponse.json(
+          {
+            error: 'Screenshot payload too large',
+            details: 'Reduce uploaded screenshot count/size (max ~10MB of image data).',
+          },
+          { status: 413 }
+        );
+      }
+    }
+
     if (!spec) {
       return NextResponse.json(
         { error: 'Product specification is required.' },
@@ -156,7 +180,8 @@ Return structured observations.`,
         actualUI = screenshotAnalyses.join('\n\n---\n\n');
       } catch (err) {
         console.error('Screenshot analysis failed:', err);
-        actualUI = 'Screenshot analysis failed. Proceeding with spec-only analysis.';
+        actualUI =
+          'Screenshot analysis failed, likely due to payload size or model image support. Proceeding with spec-only analysis.';
       }
     }
 
