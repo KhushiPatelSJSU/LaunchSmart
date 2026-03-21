@@ -12,8 +12,6 @@ import {
   signIn,
   signInWithEmail,
   signUpWithEmail,
-  getLastSignedInEmail,
-  quickSignInLastUser,
 } from '@/lib/auth'
 
 export default function HomePage() {
@@ -22,7 +20,6 @@ export default function HomePage() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
-  const [lastSignedInEmail, setLastSignedInEmail] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -32,7 +29,6 @@ export default function HomePage() {
         router.replace('/dashboard')
         return
       }
-      setLastSignedInEmail(getLastSignedInEmail())
       setIsCheckingSession(false)
     })
     return () => {
@@ -69,9 +65,18 @@ export default function HomePage() {
         router.push('/dashboard')
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Please try again.'
+      if (message.toLowerCase().includes('rate limit')) {
+        toast({
+          title: 'Check your inbox',
+          description:
+            'A sign-in email was sent recently. Use the latest email link, or wait about a minute before requesting another.',
+        })
+        return
+      }
       toast({
         title: mode === 'signup' ? 'Sign-up failed' : 'Sign-in failed',
-        description: error instanceof Error ? error.message : 'Please try again.',
+        description: message,
       })
     } finally {
       setIsLoading(false)
@@ -87,28 +92,6 @@ export default function HomePage() {
         title: 'GitHub sign-in failed',
         description: error instanceof Error ? error.message : 'Please try again.',
       })
-      setIsLoading(false)
-    }
-  }
-
-  const handleQuickSignIn = async () => {
-    if (!lastSignedInEmail) return
-    setIsLoading(true)
-    try {
-      const session = await quickSignInLastUser()
-      if (session) {
-        toast({
-          title: 'Signed in',
-          description: `Welcome back, ${session.email}.`,
-        })
-        router.push('/dashboard')
-        return
-      }
-      toast({
-        title: 'Sign-in started',
-        description: `If needed, check ${lastSignedInEmail} for a sign-in link.`,
-      })
-    } finally {
       setIsLoading(false)
     }
   }
@@ -171,18 +154,6 @@ export default function HomePage() {
             <Github className="size-4" />
             Continue with GitHub
           </Button>
-
-          {lastSignedInEmail ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              disabled={isLoading}
-              onClick={handleQuickSignIn}
-            >
-              Auto sign in as {lastSignedInEmail}
-            </Button>
-          ) : null}
         </CardContent>
       </Card>
     </main>

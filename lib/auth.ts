@@ -52,7 +52,7 @@ function getRedirectToDashboard() {
   return `${window.location.origin}/dashboard`
 }
 
-export function getLastSignedInEmail() {
+function getLastSignedInEmail() {
   if (typeof window === "undefined") return null
   return localStorage.getItem(LAST_SIGNED_IN_EMAIL_KEY)
 }
@@ -64,6 +64,9 @@ export async function signUpWithEmail(emailInput: string) {
   }
 
   if (supabase) {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LAST_SIGNED_IN_EMAIL_KEY, email)
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -71,10 +74,10 @@ export async function signUpWithEmail(emailInput: string) {
       },
     })
     if (error) {
+      if (error.message.toLowerCase().includes("rate limit")) {
+        throw new Error("Email rate limit exceeded")
+      }
       throw new Error(error.message)
-    }
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LAST_SIGNED_IN_EMAIL_KEY, email)
     }
     return
   }
@@ -96,6 +99,9 @@ export async function signInWithEmail(emailInput: string) {
   }
 
   if (supabase) {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LAST_SIGNED_IN_EMAIL_KEY, email)
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -103,10 +109,10 @@ export async function signInWithEmail(emailInput: string) {
       },
     })
     if (error) {
+      if (error.message.toLowerCase().includes("rate limit")) {
+        throw new Error("Email rate limit exceeded")
+      }
       throw new Error(error.message)
-    }
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LAST_SIGNED_IN_EMAIL_KEY, email)
     }
     return
   }
@@ -138,28 +144,6 @@ export async function signIn() {
   if (typeof window !== "undefined") {
     window.location.href = "/dashboard"
   }
-}
-
-export async function quickSignInLastUser(): Promise<UserSession | null> {
-  const lastEmail = getLastSignedInEmail()
-  if (!lastEmail) {
-    return null
-  }
-
-  if (supabase) {
-    const activeSession = await getSession()
-    if (activeSession) {
-      return activeSession
-    }
-    await signInWithEmail(lastEmail)
-    return null
-  }
-
-  const users = getStoredMockUsers()
-  const existing = users.find((user) => user.email === lastEmail)
-  if (!existing) return null
-  saveMockSession(existing)
-  return existing
 }
 
 export async function signOut() {

@@ -1,11 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { Shield, Radar, User, LogOut } from "lucide-react"
+import { Shield, Radar, LogOut } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
-import { getSession, signIn, signOut, type UserSession } from "@/lib/auth"
+import { getSession, signOut, type UserSession } from "@/lib/auth"
 
 import { supabase } from "@/lib/supabase"
 
@@ -80,12 +80,7 @@ export function Navbar() {
                     <span className="hidden sm:inline">Logout</span>
                   </Button>
                 </>
-              ) : (
-                <Button variant="default" size="sm" onClick={() => signIn()} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white">
-                  <User className="size-3.5" />
-                  Sign In
-                </Button>
-              )}
+              ) : null}
             </div>
           )}
           <ThemeToggle />
