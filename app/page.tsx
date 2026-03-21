@@ -13,7 +13,7 @@ import {
   type LaunchReportRecord,
   type ReportScore,
 } from '@/lib/report-store'
-
+import { getSession } from '@/lib/auth'
 const fallbackIssues: Issue[] = [
   {
     id: 'fallback-1',
@@ -248,6 +248,7 @@ export default function LaunchGuardPage() {
           routes,
           notes,
           specFileName,
+          userId: (await getSession())?.id || null,
         }),
       })
 
@@ -255,12 +256,12 @@ export default function LaunchGuardPage() {
         throw new Error('Analyze route failed')
       }
 
-      const data = (await response.json()) as AnalyzeResponse
+      const data = (await response.json()) as AnalyzeResponse & { reportId?: string }
       const normalized = normalizeIssues(data)
       const normalizedDrafts = normalizeDrafts(data)
       const finalIssues = normalized.length > 0 ? normalized : fallbackIssues
       const finalDecision = data.decision ?? inferDecision(finalIssues)
-      const id = createReportId()
+      const id = data.reportId || createReportId()
       const score = data.score ?? null
       const report = buildReportRecord({
         id,
@@ -272,7 +273,10 @@ export default function LaunchGuardPage() {
         score,
       })
 
-      saveLaunchReport(report)
+      // Remote API handles saving to Supabase now
+      if (!data.reportId) {
+        saveLaunchReport(report)
+      }
 
       toast({
         title: 'Analysis Complete',
@@ -309,29 +313,7 @@ export default function LaunchGuardPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_5%,rgba(56,189,248,0.16),transparent_30%),radial-gradient(circle_at_90%_0%,rgba(251,191,36,0.12),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(168,85,247,0.09),transparent_33%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.15] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:34px_34px]" />
 
-      <header className="relative animate-fade-in border-b border-border/60 bg-background/60 backdrop-blur-md">
-        <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl border border-cyan-400/35 bg-cyan-300/10 shadow-[0_0_30px_rgba(34,211,238,0.2)]">
-              <Shield className="size-5 text-cyan-200" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-xl tracking-tight text-foreground">LaunchGuard</h1>
-              <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                Release Readiness Agent
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-full border border-border/70 bg-card/55 px-3 py-1.5 text-xs text-muted-foreground md:flex">
-              <Radar className="size-3.5" />
-              Spec-to-Screenshot Verification
-            </div>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
 
       <main className="relative mx-auto flex w-full max-w-7xl flex-col gap-7 px-6 py-8">
         <section
