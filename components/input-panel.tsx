@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, Image as ImageIcon, Upload, X, Command } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { AnalysisLoading } from "@/components/analysis-loading"
 
 export interface AnalyzeInputPayload {
   projectName: string
@@ -413,6 +414,8 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
           </span>
         )}
       </Button>
+
+      {isAnalyzing && <AnalysisLoading />}
     </div>
   )
 }

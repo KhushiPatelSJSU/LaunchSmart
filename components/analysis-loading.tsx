@@ -33,17 +33,20 @@ export function AnalysisLoading() {
   useEffect(() => {
     const durations = [4000, 8000, 5000, 6000, 3000]
     let stepIndex = 0
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     const advance = () => {
       stepIndex += 1
       if (stepIndex < steps.length) {
         setCurrentStep(stepIndex)
-        setTimeout(advance, durations[stepIndex])
+        timeoutId = setTimeout(advance, durations[stepIndex])
       }
     }
 
-    const first = setTimeout(advance, durations[0])
-    return () => clearTimeout(first)
+    timeoutId = setTimeout(advance, durations[0])
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
   }, [])
 
   return (
