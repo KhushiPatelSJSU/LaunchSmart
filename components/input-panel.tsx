@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, Image as ImageIcon, Upload, X, Command } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -29,7 +28,6 @@ interface InputPanelProps {
 const MAX_SPEC_CHARS = 10000
 
 export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
-  const { toast } = useToast()
   const [projectName, setProjectName] = useState("Release Candidate")
   const [spec, setSpec] = useState("")
   const [specFile, setSpecFile] = useState<File | null>(null)
@@ -96,29 +94,7 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
 
   const addScreenshots = (files: File[]) => {
     const imageFiles = files.filter((f) => f.type.startsWith("image/"))
-    const maxCount = 5
-    const maxTotalBytes = 8 * 1024 * 1024 // 8MB total
-
-    const currentTotal = screenshots.reduce((sum, screenshot) => sum + screenshot.size, 0)
-    const candidateTotal = imageFiles.reduce((sum, file) => sum + file.size, 0)
-
-    if (screenshots.length + imageFiles.length > maxCount) {
-      toast({
-        title: "Too many screenshots",
-        description: `Upload at most ${maxCount} images to keep analysis reliable and avoid payload limits.`,
-      })
-      return
-    }
-
-    if (currentTotal + candidateTotal > maxTotalBytes) {
-      toast({
-        title: "Screenshot payload too large",
-        description: "Please reduce the total screenshot size (max 8MB across files).",
-      })
-      return
-    }
-
-    setScreenshots((prev) => [...prev, ...imageFiles].slice(0, maxCount))
+    setScreenshots((prev) => [...prev, ...imageFiles].slice(0, 10))
   }
 
   const removeScreenshot = (index: number) => {

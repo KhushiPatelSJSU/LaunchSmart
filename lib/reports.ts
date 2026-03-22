@@ -44,6 +44,19 @@ export async function getReportById(id: string) {
 
   // Map DB structure back to our expected shape
   const numericScore = typeof data.score === "number" ? data.score : Number(data.score) || 0
+  const issues = Array.isArray(data.issues) ? data.issues : []
+
+  const criticalCount = issues.filter((issue: any) => issue.severity === "critical").length
+  const highCount = issues.filter((issue: any) => issue.severity === "high").length
+  const mediumCount = issues.filter((issue: any) => issue.severity === "medium").length
+  const lowCount = issues.filter((issue: any) => issue.severity === "low").length
+
+  function bucketFromValue(score: number) {
+    if (score >= 90) return "ready"
+    if (score >= 70) return "launch_with_caution"
+    return "not_launch_ready"
+  }
+
   return {
     id: data.id,
     projectName: data.project_name,
@@ -51,18 +64,20 @@ export async function getReportById(id: string) {
     stagingUrl: data.staging_url,
     spec: data.spec_text,
     screenshots: data.screenshots || [],
-    issues: data.issues || [],
+    issues,
     score: {
       value: numericScore,
-      criticalCount: 0,
-      highCount: 0,
-      mediumCount: 0,
-      lowCount: 0,
+      bucket: bucketFromValue(numericScore),
+      criticalCount,
+      highCount,
+      mediumCount,
+      lowCount,
+      uncoveredCriticalCount: 0,
     },
     decision: { status: data.decision, reason: "" },
     routes: [], // if not in schema, default empty
     notes: "",
-    issueDrafts: data.issue_drafts || []
+    issueDrafts: data.issue_drafts || [],
   } as LaunchReportRecord
 }
 
