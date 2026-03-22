@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, Image as ImageIcon, Upload, X, Command } from "lucide-react"
+import { FileText, Image as ImageIcon, Upload, X, Command, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AnalysisLoading } from "@/components/analysis-loading"
 
@@ -18,6 +18,8 @@ export interface AnalyzeInputPayload {
   routes: string[]
   notes: string
   specFileName?: string
+  jiraUrl?: string
+  prUrl?: string
 }
 
 interface InputPanelProps {
@@ -36,10 +38,19 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
   const [routesInput, setRoutesInput] = useState("/, /pricing, /signup, /dashboard")
   const [notes, setNotes] = useState("")
   const [isDragging, setIsDragging] = useState(false)
+  
+  const [jiraUrl, setJiraUrl] = useState("")
+  const [isFetchingJira, setIsFetchingJira] = useState(false)
+  const [jiraFetched, setJiraFetched] = useState(false)
+  const [jiraSpec, setJiraSpec] = useState("")
+  const [jiraError, setJiraError] = useState("")
+  const [prUrl, setPrUrl] = useState("")
 
   const specInputRef = useRef<HTMLInputElement>(null)
   const screenshotInputRef = useRef<HTMLInputElement>(null)
-  const canAnalyze = Boolean(spec.trim() || specFile) && !isAnalyzing
+  
+  const hasSpec = spec.trim() || specFile || jiraFetched
+  const canAnalyze = Boolean(hasSpec || prUrl.trim()) && !isAnalyzing
 
   // Keyboard shortcut: Cmd/Ctrl + Enter to analyze
   useEffect(() => {
@@ -108,18 +119,46 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
       .filter(Boolean)
   }
 
+  const handleFetchJira = async () => {
+    if (!jiraUrl.trim()) return
+    setIsFetchingJira(true)
+    setJiraError("")
+    try {
+      const res = await fetch("/api/jira-fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jiraUrl: jiraUrl.trim() })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to fetch Jira ticket")
+      
+      setJiraSpec(data.spec)
+      setJiraFetched(true)
+      if (data.title && projectName === "Release Candidate") {
+        setProjectName(data.title)
+      }
+    } catch (err: any) {
+      setJiraError(err.message)
+    } finally {
+      setIsFetchingJira(false)
+    }
+  }
+
   const handleAnalyze = () => {
     const trimmedSpec = spec.trim()
     const syntheticSpec =
       specFile && !trimmedSpec
-        ? `Uploaded spec file: ${specFile.name}. ${
-            notes.trim()
-              ? `Additional release context: ${notes.trim()}`
-              : "Use screenshots and release context to produce a preliminary review."
-          }`
+        ? `Uploaded spec file: ${specFile.name}.`
         : ""
 
-    const effectiveSpec = trimmedSpec || syntheticSpec
+    const combinedSpecStrings = [trimmedSpec || syntheticSpec, jiraSpec.trim()].filter(Boolean).join("\n\n---\n\n")
+
+    let finalNotes = notes.trim()
+    if (prUrl.trim()) {
+       finalNotes = `${finalNotes}\n\nPR to analyze: ${prUrl.trim()}`.trim()
+    }
+
+    const effectiveSpec = combinedSpecStrings || (prUrl.trim() ? "Analysis based on PR diff." : "")
     if (!effectiveSpec) return
 
     onAnalyze({
@@ -128,8 +167,10 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
       screenshots,
       stagingUrl: stagingUrl.trim(),
       routes: parseRoutes(routesInput),
-      notes: notes.trim(),
+      notes: finalNotes,
       specFileName: specFile?.name,
+      jiraUrl: jiraUrl.trim() || undefined,
+      prUrl: prUrl.trim() || undefined,
     })
   }
 
@@ -284,7 +325,37 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
               </div>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          
+          {/* Jira Input Sub-section */}
+          <div className="space-y-2 pt-2 mt-4 border-t border-border/50">
+            <Label htmlFor="jira-url">Jira Ticket URL (Optional)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="jira-url"
+                placeholder="https://your-domain.atlassian.net/browse/KAN-1"
+                value={jiraUrl}
+                onChange={(e) => {
+                  setJiraUrl(e.target.value)
+                  if (jiraFetched) {
+                    setJiraFetched(false)
+                    setJiraSpec("")
+                  }
+                }}
+              />
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={handleFetchJira}
+                disabled={!jiraUrl.trim() || isFetchingJira || jiraFetched}
+              >
+                {isFetchingJira ? "Fetching..." : jiraFetched ? "Fetched" : "Fetch"}
+              </Button>
+            </div>
+            {jiraFetched && <p className="flex items-center gap-1 text-xs text-success"><CheckCircle2 className="size-3" /> Jira ticket fetched successfully!</p>}
+            {jiraError && <p className="text-xs text-destructive">{jiraError}</p>}
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-2">
             Tip: for strongest analysis, keep the most important acceptance criteria in the text box.
           </p>
 
@@ -392,6 +463,22 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
               ))}
             </div>
           )}
+
+          {/* GitHub PR Input Sub-section */}
+          <div className="space-y-2 pt-2 mt-4 border-t border-border/50">
+            <Label htmlFor="pr-url">GitHub PR Link (Optional)</Label>
+            <Input
+              id="pr-url"
+              placeholder="https://github.com/owner/repo/pull/123"
+              value={prUrl}
+              onChange={(e) => setPrUrl(e.target.value)}
+            />
+            {prUrl.trim() && (
+              <div className="rounded border border-cyan-500/30 bg-cyan-500/10 p-2 text-xs text-cyan-200">
+                PR link added — LaunchGuard will analyze the code diff
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { InputPanel, type AnalyzeInputPayload } from '@/components/input-panel'
+import { PrChecker } from '@/components/pr-checker'
 import type { Issue } from '@/components/issue-card'
 import type { DraftIssue } from '@/components/issue-draft-list'
 import { Sparkles } from 'lucide-react'
@@ -244,6 +245,8 @@ export default function LaunchGuardPage() {
       issueDrafts,
       decision,
       score,
+      jiraUrl: payload.jiraUrl,
+      prUrl: payload.prUrl,
     }
   }
 
@@ -387,10 +390,20 @@ export default function LaunchGuardPage() {
 
         <section className="grid gap-8 xl:grid-cols-[1.02fr_1fr]">
           <div
-            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6 xl:col-span-2"
+            className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6 xl:col-span-2 flex flex-col gap-8"
             style={{ animationDelay: '170ms' }}
           >
             <InputPanel onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
+
+            <div className="relative flex items-center py-2">
+              <div className="flex-grow border-t border-border/50"></div>
+              <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs uppercase tracking-widest font-semibold backdrop-blur-md px-2 rounded-full ring-1 ring-border/20 bg-background/50">
+                OR
+              </span>
+              <div className="flex-grow border-t border-border/50"></div>
+            </div>
+
+            <PrChecker />
           </div>
         </section>
       </main>

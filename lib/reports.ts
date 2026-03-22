@@ -16,6 +16,9 @@ export async function createReport(report: LaunchReportRecord, userId: string) {
     screenshots: report.screenshots,
     issues: report.issues,
     issue_drafts: report.issueDrafts,
+    jira_url: report.jiraUrl,
+    pr_url: report.prUrl,
+    jira_spec: report.jiraSpec,
     score: report.score?.value || 0,
     decision: report.decision?.status || "",
   }]).select("id").single()
@@ -78,6 +81,9 @@ export async function getReportById(id: string) {
     routes: [], // if not in schema, default empty
     notes: "",
     issueDrafts: data.issue_drafts || [],
+    jiraUrl: data.jira_url,
+    prUrl: data.pr_url,
+    jiraSpec: data.jira_spec,
   } as LaunchReportRecord
 }
 

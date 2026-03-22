@@ -57,6 +57,9 @@ export interface LaunchReportRecord {
   issueDrafts: ReportIssueDraft[]
   decision: ReportDecision | null
   score: ReportScore | null
+  jiraUrl?: string
+  prUrl?: string
+  jiraSpec?: string
 }
 
 const REPORT_KEY_PREFIX = "launchsmart:report:"

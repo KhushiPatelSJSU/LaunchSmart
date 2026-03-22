@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Copy, Download, Github, Loader2 } from "lucide-react"
+import { Copy, Download, Github, Loader2, Trello } from "lucide-react"
 import type { Issue } from "@/components/issue-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -77,6 +77,11 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
   const [isCreatingAll, setIsCreatingAll] = useState(false)
   const [isCreatingCritical, setIsCreatingCritical] = useState(false)
   const [creatingDraftId, setCreatingDraftId] = useState<string | null>(null)
+  const [jiraProject, setJiraProject] = useState("")
+  const [isCreatingJiraAll, setIsCreatingJiraAll] = useState(false)
+  const [isCreatingJiraCritical, setIsCreatingJiraCritical] = useState(false)
+  const [creatingJiraDraftId, setCreatingJiraDraftId] = useState<string | null>(null)
+  
   const { toast } = useToast()
 
   const drafts = useMemo(
@@ -144,6 +149,87 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
       title: "JSON exported",
       description: "Issue drafts downloaded for GitHub/Linear import.",
     })
+  }
+
+  const createJiraIssues = async (
+    mode: "all" | "critical" | "single",
+    targetDraft?: DraftIssue
+  ) => {
+    const selectedDrafts =
+      mode === "single"
+        ? targetDraft
+          ? [targetDraft]
+          : []
+        : mode === "critical"
+        ? drafts.filter((draft) => draft.severity === "critical")
+        : drafts
+
+    if (selectedDrafts.length === 0) {
+      toast({
+        title: "No drafts selected",
+        description: "No drafts available for Jira creation.",
+      })
+      return
+    }
+
+    if (!jiraProject.trim()) {
+      toast({
+        title: "Jira Project Key Required",
+        description: "Please enter your Jira Project Key (e.g. KAN) first.",
+      })
+      return
+    }
+
+    const reportUrl = typeof window !== "undefined" ? window.location.href : undefined
+    const reportId = reportUrl ? reportUrl.split("/").pop() : undefined
+
+    try {
+      if (mode === "all") setIsCreatingJiraAll(true)
+      else if (mode === "critical") setIsCreatingJiraCritical(true)
+      else if (targetDraft) setCreatingJiraDraftId(targetDraft.id)
+
+      const response = await fetch("/api/integrations/jira", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectKey: jiraProject.trim(),
+          drafts: selectedDrafts,
+          mode: mode === "critical" ? "critical" : "all",
+          reportUrl,
+          reportId,
+        }),
+      })
+
+      const payload = (await response.json()) as {
+        error?: string
+        message?: string
+        created?: Array<{ id: string }>
+        failed?: Array<{ id: string; error: string }>
+        skipped?: Array<{ id: string }>
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to create Jira issues.")
+      }
+
+      const createdCount = payload.created?.length ?? 0
+      const failedCount = payload.failed?.length ?? 0
+      const skippedCount = payload.skipped?.length ?? 0
+
+      toast({
+        title: createdCount > 0 ? "Jira tickets created" : "No tickets created",
+        description: payload.message || `${createdCount} created, ${skippedCount} skipped.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Jira creation failed",
+        description: error instanceof Error ? error.message : "Unable to create tickets.",
+      })
+    } finally {
+      setIsCreatingJiraAll(false)
+      setIsCreatingJiraCritical(false)
+      setCreatingJiraDraftId(null)
+    }
   }
 
   const createGithubIssues = async (
@@ -278,8 +364,54 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
             )}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground pt-1 pb-3">
           Requires `GITHUB_TOKEN` in server env and repo path in `owner/repo` format.
+        </p>
+
+        <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
+          <Input
+            value={jiraProject}
+            onChange={(e) => setJiraProject(e.target.value)}
+            placeholder="Jira Project Key (e.g. KAN)"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => createJiraIssues("critical")}
+            disabled={isCreatingJiraCritical || drafts.length === 0}
+          >
+            {isCreatingJiraCritical ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Creating
+              </>
+            ) : (
+              <>
+                <Trello className="size-4" />
+                Create Critical
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => createJiraIssues("all")}
+            disabled={isCreatingJiraAll || drafts.length === 0}
+          >
+            {isCreatingJiraAll ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Creating
+              </>
+            ) : (
+              <>
+                <Trello className="size-4" />
+                Create All
+              </>
+            )}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Requires Jira env variables. Checks for existing tickets automatically.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -334,7 +466,25 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
                   ) : (
                     <>
                       <Github className="size-4" />
-                      Create on GitHub
+                      GitHub
+                    </>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => createJiraIssues("single", draft)}
+                  disabled={creatingJiraDraftId === draft.id}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {creatingJiraDraftId === draft.id ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Creating
+                    </>
+                  ) : (
+                    <>
+                      <Trello className="size-4" />
+                      Jira
                     </>
                   )}
                 </Button>
