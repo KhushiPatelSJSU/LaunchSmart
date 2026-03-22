@@ -53,7 +53,7 @@ export function ReportFollowUp({ analysisId }: { analysisId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Ask LaunchGuard</CardTitle>
+        <CardTitle className="text-lg">Ask LaunchSmart</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <form className="space-y-3" onSubmit={onSubmit}>

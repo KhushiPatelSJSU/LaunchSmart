@@ -96,7 +96,7 @@ function buildIssueDrafts(issues: GeneratedIssue[]) {
     actualBehavior: issue.observed,
     recommendedFix: issue.fix,
     evidence: issue.evidence,
-    acceptanceCheck: `Re-run LaunchGuard and confirm "${issue.title}" no longer appears as a blocker.`,
+    acceptanceCheck: `Re-run LaunchSmart and confirm "${issue.title}" no longer appears as a blocker.`,
   }));
 }
 

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       blockers?: string[]
     }
 
-    const projectName = body.projectName?.trim() || "LaunchGuard Report"
+    const projectName = body.projectName?.trim() || "LaunchSmart Report"
     const status = body.status?.trim() || "Unknown"
     const reason = body.reason?.trim() || "No reason provided."
     const score = Number.isFinite(body.score) ? body.score : null
@@ -37,13 +37,13 @@ export async function POST(req: NextRequest) {
     const reportUrl = body.reportUrl?.trim()
 
     const payload = {
-      text: `LaunchGuard: ${projectName} · ${status}`,
+      text: `LaunchSmart: ${projectName} · ${status}`,
       blocks: [
         {
           type: "header",
           text: {
             type: "plain_text",
-            text: `LaunchGuard · ${projectName}`,
+            text: `LaunchSmart · ${projectName}`,
           },
         },
         {

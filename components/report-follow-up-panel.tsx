@@ -78,7 +78,7 @@ export function ReportFollowUpPanel({ issues, decision }: ReportFollowUpPanelPro
   return (
     <Card className="border-border/75 bg-card/60">
       <CardHeader>
-        <CardTitle className="text-base">Ask LaunchGuard</CardTitle>
+        <CardTitle className="text-base">Ask LaunchSmart</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <form className="space-y-2" onSubmit={handleAsk}>

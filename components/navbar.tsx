@@ -43,7 +43,7 @@ export function Navbar() {
             <Shield className="size-5 text-cyan-200" />
           </div>
           <div>
-            <h1 className="font-semibold text-xl tracking-tight text-foreground">LaunchGuard</h1>
+            <h1 className="font-semibold text-xl tracking-tight text-foreground">LaunchSmart</h1>
             <p className="text-xs tracking-[0.16em] text-muted-foreground uppercase">
               Release Readiness Agent
             </p>

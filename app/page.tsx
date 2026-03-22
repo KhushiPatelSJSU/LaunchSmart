@@ -103,7 +103,7 @@ export default function HomePage() {
     <main className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-3xl items-center px-6 py-12">
       <Card className="w-full border-border/70 bg-card/50">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl">Sign in to LaunchGuard</CardTitle>
+          <CardTitle className="text-2xl">Sign in to LaunchSmart</CardTitle>
           <CardDescription>
             Sign up or sign in first. After auth, you will be redirected to your dashboard.
           </CardDescription>

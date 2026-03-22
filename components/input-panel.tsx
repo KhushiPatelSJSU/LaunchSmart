@@ -171,7 +171,7 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
                 id="project-name"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="LaunchGuard Demo"
+                placeholder="LaunchSmart Demo"
               />
             </div>
             <div className="space-y-2">

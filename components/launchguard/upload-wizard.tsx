@@ -71,7 +71,7 @@ export function UploadWizard() {
       };
 
       if (!response.ok || !payload.id) {
-        throw new Error(payload.error ?? "Failed to run LaunchGuard analysis.");
+        throw new Error(payload.error ?? "Failed to run LaunchSmart analysis.");
       }
 
       router.push(`/analyze/${payload.id}`);
@@ -80,7 +80,7 @@ export function UploadWizard() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to run LaunchGuard analysis."
+          : "Failed to run LaunchSmart analysis."
       );
     } finally {
       setIsSubmitting(false);
@@ -95,7 +95,7 @@ export function UploadWizard() {
           <Input
             id="project-name"
             onChange={(event) => setProjectName(event.target.value)}
-            placeholder="LaunchGuard Demo"
+            placeholder="LaunchSmart Demo"
             required
             value={projectName}
           />
@@ -123,7 +123,7 @@ export function UploadWizard() {
           type="file"
         />
         <p className="text-muted-foreground text-xs">
-          Required. LaunchGuard extracts the highest-risk acceptance criteria.
+          Required. LaunchSmart extracts the highest-risk acceptance criteria.
         </p>
       </div>
 

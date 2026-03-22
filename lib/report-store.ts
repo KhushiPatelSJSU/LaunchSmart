@@ -59,7 +59,7 @@ export interface LaunchReportRecord {
   score: ReportScore | null
 }
 
-const REPORT_KEY_PREFIX = "launchguard:report:"
+const REPORT_KEY_PREFIX = "launchsmart:report:"
 
 export function createReportId() {
   const random = Math.random().toString(36).slice(2, 8)

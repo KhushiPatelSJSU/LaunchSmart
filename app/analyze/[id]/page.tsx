@@ -111,7 +111,7 @@ export default function AnalyzeReportPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            LaunchGuard Report
+            LaunchSmart Report
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">{report.projectName}</h1>
         </div>

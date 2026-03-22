@@ -43,7 +43,7 @@ function toDraft(issue: Issue, index: number): DraftIssue {
       issue.recommendedFix ??
       "Implement and verify spec-compliant behavior in the affected flow.",
     evidence: issue.evidence ?? "No explicit evidence attached.",
-    acceptanceCheck: `Re-run LaunchGuard and confirm "${issue.title}" is no longer flagged.`,
+    acceptanceCheck: `Re-run LaunchSmart and confirm "${issue.title}" is no longer flagged.`,
   }
 }
 
@@ -85,7 +85,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
   )
 
   useEffect(() => {
-    const cached = localStorage.getItem("launchguard:github-repo")
+    const cached = localStorage.getItem("launchsmart:github-repo")
     if (cached) {
       setRepo(cached)
       return
@@ -113,7 +113,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
 
   useEffect(() => {
     if (repo.trim()) {
-      localStorage.setItem("launchguard:github-repo", repo.trim())
+      localStorage.setItem("launchsmart:github-repo", repo.trim())
     }
   }, [repo])
 
@@ -137,7 +137,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement("a")
     anchor.href = url
-    anchor.download = "launchguard-issue-drafts.json"
+    anchor.download = "launchsmart-issue-drafts.json"
     anchor.click()
     URL.revokeObjectURL(url)
     toast({

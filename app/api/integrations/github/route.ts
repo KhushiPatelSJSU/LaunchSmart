@@ -48,11 +48,11 @@ function buildIssueBody(draft: DraftIssue, reportUrl?: string) {
     "",
     "## Acceptance Check",
     draft.acceptanceCheck,
-    ...(reportUrl ? ["", `LaunchGuard Report: ${reportUrl}`] : []),
+    ...(reportUrl ? ["", `LaunchSmart Report: ${reportUrl}`] : []),
   ].join("\n")
 }
 
-// ✅ Fetch existing open launchguard issues to check for duplicates
+// ✅ Fetch existing open launchsmart issues to check for duplicates
 async function fetchExistingIssueTitles(
   owner: string,
   name: string,
@@ -60,7 +60,7 @@ async function fetchExistingIssueTitles(
 ): Promise<Set<string>> {
   try {
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${name}/issues?state=open&per_page=100&labels=launchguard`,
+      `https://api.github.com/repos/${owner}/${name}/issues?state=open&per_page=100&labels=launchsmart`,
       {
         headers: {
           Accept: "application/vnd.github+json",
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
     const skipped: Array<{ id: string; title: string; reason: string }> = []
 
     for (const draft of selectedDrafts) {
-      const issueTitle = `[LaunchGuard][${draft.severity.toUpperCase()}] ${draft.title}`
+      const issueTitle = `[LaunchSmart][${draft.severity.toUpperCase()}] ${draft.title}`
 
       // ✅ Skip duplicates
       if (existingTitles.has(issueTitle.toLowerCase())) {
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
               title: issueTitle,
               body: buildIssueBody(draft, body.reportUrl),
-              labels: ["launchguard"], // ✅ Tag all issues for easy filtering
+              labels: ["launchsmart"], // ✅ Tag all issues for easy filtering
             }),
           }
         )

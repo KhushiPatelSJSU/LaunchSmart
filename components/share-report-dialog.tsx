@@ -84,7 +84,7 @@ export function ShareReportDialog({
       ? `${window.location.origin}/analyze/${reportId}`
       : undefined
 
-  const summaryText = `LaunchGuard report
+  const summaryText = `LaunchSmart report
 Project: ${projectName ?? "Release Candidate"}
 Launch score: ${summary.score}/100 (${summary.status})
 Decision: ${summary.status}
@@ -94,7 +94,7 @@ Top blockers:
 ${summary.topBlockers || "No blockers detected."}
 ${reportUrl ? `Report: ${reportUrl}` : ""}`
 
-  const markdownReport = `## LaunchGuard Report
+  const markdownReport = `## LaunchSmart Report
 - **Project:** ${projectName ?? "Release Candidate"}
 - **Launch Score:** ${summary.score}/100
 - **Status:** ${summary.status}

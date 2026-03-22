@@ -1,8 +1,8 @@
-import { EvidenceGallery } from "@/components/launchguard/evidence-gallery";
-import { FindingsList } from "@/components/launchguard/findings-list";
-import { IssueDraftList } from "@/components/launchguard/issue-draft-list";
-import { ReportFollowUp } from "@/components/launchguard/report-follow-up";
-import { ScoreCard } from "@/components/launchguard/score-card";
+import { EvidenceGallery } from "@/components/launchsmart/evidence-gallery";
+import { FindingsList } from "@/components/launchsmart/findings-list";
+import { IssueDraftList } from "@/components/launchsmart/issue-draft-list";
+import { ReportFollowUp } from "@/components/launchsmart/report-follow-up";
+import { ScoreCard } from "@/components/launchsmart/score-card";
 import { Badge } from "@/components/ui/badge";
 import type { LaunchAnalysisReport } from "@/lib/schemas";
 

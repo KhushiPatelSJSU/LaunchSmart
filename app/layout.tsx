@@ -10,7 +10,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'LaunchGuard - AI Product Analysis',
+  title: 'LaunchSmart - AI Product Analysis',
   description: 'Analyze your product specs and UI screenshots to catch issues before launch',
   generator: 'v0.app',
   icons: {
