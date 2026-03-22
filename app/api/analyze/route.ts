@@ -169,7 +169,12 @@ ${spec}`,
 
 Return structured observations.`,
                     },
-                    { type: 'image', image: new URL(url) },
+                    {
+                      type: 'image',
+                      image: url.includes('base64,') 
+                        ? Buffer.from(url.split('base64,')[1], 'base64') 
+                        : new URL(url)
+                    },
                   ],
                 },
               ],
