@@ -45,15 +45,15 @@ export default function SettingsPage() {
         return
       }
       setSession(s)
-      fetchKeys()
+      fetchKeys(s.id)
     })
     return () => { mounted = false }
   }, [router])
 
-  const fetchKeys = async () => {
+  const fetchKeys = async (uid: string) => {
     setLoading(true)
     try {
-      const res = await fetch("/api/settings/keys")
+      const res = await fetch(`/api/settings/keys?userId=${uid}`)
       if (!res.ok) throw new Error("Failed to fetch keys")
       const data = await res.json()
       setKeys({
@@ -78,7 +78,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings/keys", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(keys),
+        body: JSON.stringify({ ...keys, userId: session?.id }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -89,7 +89,7 @@ export default function SettingsPage() {
         description: "Your API keys have been securely stored.",
       })
       // Re-fetch to get masked versions
-      await fetchKeys()
+      if (session) await fetchKeys(session.id)
     } catch (err: any) {
       toast({
         title: "Save failed",

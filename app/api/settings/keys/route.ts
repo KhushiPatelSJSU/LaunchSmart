@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 
 function mask(value: string | null): string {
@@ -7,17 +7,20 @@ function mask(value: string | null): string {
   return value.slice(0, 4) + "••••" + value.slice(-4)
 }
 
-async function getAuthUserId(): Promise<string | null> {
-  if (!supabase) return null
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id || null
+function sanitizeDomain(raw: string): string {
+  if (!raw) return ""
+  // Strip protocol and trailing slashes so we store just the hostname
+  return raw
+    .replace(/^https?:\/\//, "")
+    .replace(/\/+$/, "")
+    .trim()
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const userId = await getAuthUserId()
+    const userId = req.nextUrl.searchParams.get("userId")
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "userId is required" }, { status: 400 })
     }
 
     if (!supabase) {
@@ -51,17 +54,16 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const userId = await getAuthUserId()
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     if (!supabase) {
       return NextResponse.json({ error: "Database not configured" }, { status: 500 })
     }
 
     const body = await req.json()
-    const { github_token, jira_email, jira_api_token, jira_domain } = body
+    const { userId, github_token, jira_email, jira_api_token, jira_domain } = body
+
+    if (!userId) {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    }
 
     // Build update payload — only update fields that were explicitly provided
     // If a field value looks like our mask pattern, skip it (user didn't change it)
@@ -79,7 +81,7 @@ export async function PUT(req: Request) {
       updatePayload.jira_api_token = jira_api_token || null
     }
     if (jira_domain !== undefined) {
-      updatePayload.jira_domain = jira_domain || null
+      updatePayload.jira_domain = sanitizeDomain(jira_domain) || null
     }
 
     // Upsert: insert if no row exists, update if it does
