@@ -86,7 +86,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts, userId }: IssueD
   const { toast } = useToast()
 
   const drafts = useMemo(
-    () => backendDrafts ?? issues.map((issue, index) => toDraft(issue, index)),
+    () => (backendDrafts && backendDrafts.length > 0) ? backendDrafts : issues.map((issue, index) => toDraft(issue, index)),
     [backendDrafts, issues]
   )
 
