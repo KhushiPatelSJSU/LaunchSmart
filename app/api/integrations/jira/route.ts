@@ -42,7 +42,30 @@ export async function POST(req: Request) {
       "Content-Type": "application/json",
     };
 
-    // 1. Fetch existing LaunchGuard bugs to prevent duplication
+    // 1. Dynamically fetch valid issue types for the project
+    const projectRes = await fetch(
+      `https://${domain}/rest/api/3/project/${projectKey}`,
+      { headers }
+    );
+    let validIssueTypeId: string | undefined;
+    if (projectRes.ok) {
+      const projectData = await projectRes.json();
+      const issueTypes = projectData.issueTypes || [];
+      const preferredNames = ["Bug", "Task", "Story", "Issue"];
+      for (const name of preferredNames) {
+        const match = issueTypes.find((it: any) => it.name === name);
+        if (match) {
+          validIssueTypeId = match.id;
+          break;
+        }
+      }
+      if (!validIssueTypeId) {
+        const firstMain = issueTypes.find((it: any) => !it.subtask);
+        if (firstMain) validIssueTypeId = firstMain.id;
+      }
+    }
+
+    // 2. Fetch existing LaunchGuard tickets to prevent duplication
     const searchRes = await fetch(
       `https://${domain}/rest/api/3/search?jql=project=${projectKey} AND summary~"LaunchGuard"`,
       { headers }
@@ -159,7 +182,7 @@ export async function POST(req: Request) {
           project: { key: projectKey },
           summary,
           description,
-          issuetype: { name: "Bug" },
+          issuetype: validIssueTypeId ? { id: validIssueTypeId } : { name: "Task" },
           priority: { name: mapSeverityToPriority(draft.severity) },
           labels: ["launchguard", mode === "critical" ? "critical-blocker" : "qa-finding"],
         },
