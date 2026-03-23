@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { resolveJiraCredentials } from "@/lib/user-keys";
 
 export async function POST(req: Request) {
   try {
-    const { jiraUrl } = await req.json();
+    const { jiraUrl, userId } = await req.json();
     if (!jiraUrl || !jiraUrl.includes("atlassian.net/browse/")) {
       return NextResponse.json(
         { error: "Invalid Jira URL. Must contain atlassian.net/browse/" },
@@ -15,12 +16,13 @@ export async function POST(req: Request) {
     // Extract key, handling possible query parameters or trailing paths
     const ticketKey = jiraUrl.split("/browse/")[1].split("/")[0].split("?")[0];
 
-    const email = process.env.JIRA_EMAIL;
-    const token = process.env.JIRA_API_TOKEN;
+    const jiraCreds = await resolveJiraCredentials(userId);
+    const email = jiraCreds.email;
+    const token = jiraCreds.token;
 
     if (!email || !token) {
       return NextResponse.json(
-        { error: "Jira API credentials not configured on the server." },
+        { error: "Jira API credentials not configured. Add them in Settings or ask your admin." },
         { status: 500 }
       );
     }
@@ -69,3 +71,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

@@ -17,7 +17,7 @@ export interface PreCheckResult {
   prUrl: string
 }
 
-export function PrChecker() {
+export function PrChecker({ userId }: { userId?: string }) {
   const [prUrl, setPrUrl] = useState("")
   const [jiraUrl, setJiraUrl] = useState("")
   const [specStr, setSpecStr] = useState("")
@@ -39,7 +39,8 @@ export function PrChecker() {
         body: JSON.stringify({
           prUrl: prUrl.trim(),
           jiraTicket: jiraUrl.trim() || undefined,
-          spec: specStr.trim() || undefined
+          spec: specStr.trim() || undefined,
+          userId,
         })
       })
 

@@ -30,6 +30,7 @@ export default function AnalyzeReportPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [report, setReport] = useState<LaunchReportRecord | null>(null)
+  const [userId, setUserId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     let mounted = true
@@ -39,6 +40,7 @@ export default function AnalyzeReportPage() {
         router.replace("/")
         return
       }
+      setUserId(session.id)
       setIsCheckingSession(false)
     })
     return () => {
@@ -190,6 +192,7 @@ export default function AnalyzeReportPage() {
           onReAnalyze={() => {
             router.push("/dashboard")
           }}
+          userId={userId}
         />
       </Card>
     </main>

@@ -393,7 +393,7 @@ export default function LaunchGuardPage() {
             className="animate-rise-in rounded-2xl border border-border/70 bg-card/50 p-5 shadow-xl shadow-black/20 backdrop-blur-sm md:p-6 xl:col-span-2 flex flex-col gap-8"
             style={{ animationDelay: '170ms' }}
           >
-            <InputPanel onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
+            <InputPanel onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} userId={session?.id} />
 
             <div className="relative flex items-center py-2">
               <div className="flex-grow border-t border-border/50"></div>
@@ -403,7 +403,7 @@ export default function LaunchGuardPage() {
               <div className="flex-grow border-t border-border/50"></div>
             </div>
 
-            <PrChecker />
+            <PrChecker userId={session?.id} />
           </div>
         </section>
       </main>

@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 interface IssueDraftListProps {
   issues: Issue[]
   drafts?: DraftIssue[]
+  userId?: string
 }
 
 export interface DraftIssue {
@@ -71,7 +72,7 @@ function toMarkdown(draft: DraftIssue) {
   ].join("\n")
 }
 
-export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftListProps) {
+export function IssueDraftList({ issues, drafts: backendDrafts, userId }: IssueDraftListProps) {
   const [copyingId, setCopyingId] = useState<string | null>(null)
   const [repo, setRepo] = useState("")
   const [isCreatingAll, setIsCreatingAll] = useState(false)
@@ -197,6 +198,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
           mode: mode === "critical" ? "critical" : "all",
           reportUrl,
           reportId,
+          userId,
         }),
       })
 
@@ -277,6 +279,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
           drafts: selectedDrafts,
           mode: mode === "critical" ? "critical" : "all",
           reportUrl,
+          userId,
         }),
       })
 
@@ -365,7 +368,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
           </Button>
         </div>
         <p className="text-xs text-muted-foreground pt-1 pb-3">
-          Requires `GITHUB_TOKEN` in server env and repo path in `owner/repo` format.
+          Requires GitHub token (add in Settings) and repo path in `owner/repo` format.
         </p>
 
         <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
@@ -411,7 +414,7 @@ export function IssueDraftList({ issues, drafts: backendDrafts }: IssueDraftList
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Requires Jira env variables. Checks for existing tickets automatically.
+          Requires Jira credentials (add in Settings). Checks for existing tickets automatically.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">

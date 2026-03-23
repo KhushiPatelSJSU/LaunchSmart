@@ -3,10 +3,11 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { resolveGitHubToken, resolveJiraCredentials } from "@/lib/user-keys";
 
 export async function POST(req: Request) {
   try {
-    const { prUrl, spec, jiraTicket, reportId } = await req.json();
+    const { prUrl, spec, jiraTicket, reportId, userId } = await req.json();
 
     if (!prUrl || !prUrl.includes("github.com/")) {
       return NextResponse.json({ error: "Valid GitHub PR URL is required." }, { status: 400 });
@@ -18,8 +19,9 @@ export async function POST(req: Request) {
       try {
         const ticketKey = jiraTicket.split("/browse/")[1].split("/")[0].split("?")[0];
         const domain = new URL(jiraTicket).hostname;
-        const email = process.env.JIRA_EMAIL;
-        const token = process.env.JIRA_API_TOKEN;
+        const jiraCreds = await resolveJiraCredentials(userId);
+        const email = jiraCreds.email;
+        const token = jiraCreds.token;
         
         if (email && token && domain) {
           const auth = Buffer.from(`${email}:${token}`).toString("base64");
@@ -45,12 +47,13 @@ export async function POST(req: Request) {
     }
     const [, owner, repo, pullNumber] = match;
 
+    const ghToken = await resolveGitHubToken(userId);
     const ghHeaders: Record<string, string> = {
       Accept: "application/vnd.github.v3+json",
       "User-Agent": "LaunchGuard-App"
     };
-    if (process.env.GITHUB_TOKEN) {
-      ghHeaders["Authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    if (ghToken) {
+      ghHeaders["Authorization"] = `Bearer ${ghToken}`;
     }
 
     const prRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}`, { headers: ghHeaders });

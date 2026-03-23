@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Shield, Radar, LogOut } from "lucide-react"
+import { Shield, Radar, LogOut, Settings } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
@@ -73,6 +73,12 @@ export function Navbar() {
                   <Link href="/history">
                     <Button variant="ghost" size="sm" className="hidden sm:flex">
                       History
+                    </Button>
+                  </Link>
+                  <Link href="/settings">
+                    <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-1.5">
+                      <Settings className="size-3.5" />
+                      Settings
                     </Button>
                   </Link>
                   <Button variant="outline" size="sm" onClick={() => signOut()} className="flex items-center gap-2">

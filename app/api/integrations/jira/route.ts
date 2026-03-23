@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { resolveJiraCredentials } from "@/lib/user-keys";
 
 export async function POST(req: Request) {
   try {
-    const { drafts, projectKey, mode, reportUrl, reportId } = await req.json();
+    const { drafts, projectKey, mode, reportUrl, reportId, userId } = await req.json();
 
     if (!drafts || !Array.isArray(drafts) || drafts.length === 0) {
       return NextResponse.json(
@@ -19,15 +20,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const email = process.env.JIRA_EMAIL;
-    const token = process.env.JIRA_API_TOKEN;
-    const domain = process.env.JIRA_DOMAIN;
+    const jiraCreds = await resolveJiraCredentials(userId);
+    const email = jiraCreds.email;
+    const token = jiraCreds.token;
+    const domain = jiraCreds.domain;
 
     if (!email || !token || !domain) {
       return NextResponse.json(
         {
           error:
-            "Jira credentials (JIRA_EMAIL, JIRA_API_TOKEN, JIRA_DOMAIN) are not configured.",
+            "Jira credentials not configured. Add them in Settings or ask your admin.",
         },
         { status: 500 }
       );
