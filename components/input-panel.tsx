@@ -25,11 +25,12 @@ export interface AnalyzeInputPayload {
 interface InputPanelProps {
   onAnalyze: (payload: AnalyzeInputPayload) => void
   isAnalyzing: boolean
+  userId?: string
 }
 
 const MAX_SPEC_CHARS = 10000
 
-export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
+export function InputPanel({ onAnalyze, isAnalyzing, userId }: InputPanelProps) {
   const [projectName, setProjectName] = useState("Release Candidate")
   const [spec, setSpec] = useState("")
   const [specFile, setSpecFile] = useState<File | null>(null)
@@ -127,7 +128,7 @@ export function InputPanel({ onAnalyze, isAnalyzing }: InputPanelProps) {
       const res = await fetch("/api/jira-fetch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jiraUrl: jiraUrl.trim() })
+        body: JSON.stringify({ jiraUrl: jiraUrl.trim(), userId })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to fetch Jira ticket")

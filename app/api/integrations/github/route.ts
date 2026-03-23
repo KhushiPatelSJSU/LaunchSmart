@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { resolveGitHubToken } from "@/lib/user-keys"
 
 type DraftIssue = {
   id: string
@@ -79,19 +80,20 @@ async function fetchExistingIssueTitles(
 
 export async function POST(req: NextRequest) {
   try {
-    const token = process.env.GITHUB_TOKEN
-    if (!token) {
-      return NextResponse.json(
-        { error: "GITHUB_TOKEN is not configured." },
-        { status: 400 }
-      )
-    }
-
     const body = (await req.json()) as {
       repo?: string
       drafts?: DraftIssue[]
       mode?: "all" | "critical"
       reportUrl?: string
+      userId?: string
+    }
+
+    const token = await resolveGitHubToken(body.userId)
+    if (!token) {
+      return NextResponse.json(
+        { error: "GitHub token not configured. Add it in Settings or ask your admin." },
+        { status: 400 }
+      )
     }
 
     const repo = resolveRepo(body.repo)

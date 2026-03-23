@@ -47,6 +47,7 @@ interface ResultsPanelProps {
   onCreateIssue: (issue: Issue) => void | Promise<void>
   onDismiss?: (issue: Issue) => void | Promise<void>
   onReAnalyze?: () => void
+  userId?: string
 }
 
 type FilterType = "all" | ExtendedSeverity
@@ -64,6 +65,7 @@ export function ResultsPanel({
   onCreateIssue,
   onDismiss,
   onReAnalyze,
+  userId,
 }: ResultsPanelProps) {
   const [filter, setFilter] = useState<FilterType>("all")
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -262,7 +264,7 @@ export function ResultsPanel({
         <ReportFollowUpPanel issues={visibleIssues} decision={decision} />
       </div>
 
-      <IssueDraftList issues={visibleIssues} drafts={issueDrafts} />
+      <IssueDraftList issues={visibleIssues} drafts={issueDrafts} userId={userId} />
     </div>
   )
 }
