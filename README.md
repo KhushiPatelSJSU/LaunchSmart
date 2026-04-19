@@ -18,11 +18,11 @@ The pipeline:
 4. **Outputs** up to 5 structured issues, each containing severity, root cause, recommended fix, and confidence level.
 5. **Computes** a strict, deterministic `0-100` launch score (No AI inflation: -25 per critical, -10 per high, -4 per medium issue). Buckets the release into `Ready`, `Launch with Caution`, or `Block Release`.
 
-### 💻 Autonomous PR Checker
-Paste a GitHub PR URL and optionally link a Jira ticket. LaunchSmart will:
-1. Fetch the raw code diffs from the GitHub API.
-2. Pull acceptance criteria from the linked Jira ticket (via the Atlassian REST API).
-3. Have Gemini act as a Release Engineer to review the changes.
+### 💻 Autonomous Agentic PR Checker (Powered by MCP)
+Paste a GitHub PR URL and optionally link a Jira ticket. LaunchSmart unleashes Gemini as an autonomous agent:
+1. Built-in **Model Context Protocol (MCP)** Server securely exposes API integrations as executable tools.
+2. The AI explicitly determines exactly when and what data to fetch (e.g., triggering `fetch_pr_diff` and `fetch_jira_ticket`) mid-thought loop.
+3. Dynamically interprets the code diffs and Jira Acceptance criteria iteratively rather than being constrained to rigid, massive static prompts.
 4. Return an **APPROVE** or **BLOCK** verdict with a detailed breakdown of what is implemented vs. missing in the code.
 
 ### 🔗 Seamless Integrations
@@ -47,7 +47,7 @@ Push findings to your existing workflows with one click:
 
 - **Frontend:** Next.js (App Router), React, Tailwind CSS, shadcn/ui, Zustand
 - **Backend:** Next.js Serverless API Routes
-- **AI / LLM:** `@ai-sdk/google` (Gemini 2.5 Flash)
+- **AI / LLM:** `@ai-sdk/google` (Gemini 2.5 Flash), `@modelcontextprotocol/sdk` (MCP Agentic Loop)
 - **Database & Auth:** Supabase
 - **Integrations:** GitHub API, Atlassian (Jira) REST API v3, Slack Webhooks
 
